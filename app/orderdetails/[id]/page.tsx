@@ -32,7 +32,7 @@ function AdminOrderDetail() {
       socket.emit("updatePaymentStatus", {
         status: e.target.value,
         orderId: id,
-        paymentId: orderDetails[0]?.paymentId,
+        paymentId: orderDetails[0].Order.Payment.id,
       });
     }
   };
