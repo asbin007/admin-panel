@@ -46,7 +46,7 @@ export default function LoginForm() {
       const currentStatus = store.getState().auth.status;
       if (currentStatus === 'success') {
         console.log('Login successful, redirecting...');
-        router.push("/");
+      router.push("/");
       } else {
         console.log('Login failed, status:', currentStatus);
       }

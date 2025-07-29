@@ -180,9 +180,9 @@ export default function ProductDetailsPage() {
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" onClick={() => setIsModalOpen(true)}>
-            <Edit className="h-4 w-4 mr-2" />
-            Edit
-          </Button>
+    <Edit className="h-4 w-4 mr-2" />
+    Edit
+  </Button>
           <Button variant="destructive" onClick={handleDelete}>
             <Trash2 className="h-4 w-4 mr-2" />
             Delete
@@ -192,14 +192,14 @@ export default function ProductDetailsPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Product Images */}
-        <Card>
-          <CardHeader>
+          <Card>
+            <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Package className="h-5 w-5" />
               Product Images ({imageUrls.length})
             </CardTitle>
-          </CardHeader>
-          <CardContent>
+            </CardHeader>
+            <CardContent>
             {imageUrls.length > 0 ? (
               <div className="space-y-4">
                 {/* Main large image */}
@@ -228,16 +228,16 @@ export default function ProductDetailsPage() {
                         }`}
                         onClick={() => setSelectedImageIndex(index)}
                       >
-                        <Image
-                          src={imageUrl}
+                      <Image
+                        src={imageUrl}
                           alt={`${product.name} - Image ${index + 1}`}
-                          fill
-                          className="object-cover"
+                        fill
+                        className="object-cover"
                           onError={(e) => {
                             (e.target as HTMLImageElement).src = "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjMwMCIgdmlld0JveD0iMCAwIDMwMCAzMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIzMDAiIGhlaWdodD0iMzAwIiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik0xNTAgNzVDMTEwLjUgNzUgNzcgMTA4LjUgNzcgMTQ4Qzc3IDE4Ny41IDExMC41IDIyMSAxNTAgMjIxQzE4OS41IDIyMSAyMjMgMTg3LjUgMjIzIDE0OEMyMjMgMTA4LjUgMTg5LjUgNzUgMTUwIDc1Wk0xNTAgMTk1QzExOS4zIDE5NSA5NSAxNzAuNyA5NSAxNDBDOTUgMTA5LjMgMTE5LjMgODUgMTUwIDg1QzE4MC43IDg1IDIwNSAxMDkuMyAyMDUgMTQwQzIwNSAxNzAuNyAxODAuNyAxOTUgMTUwIDE5NVoiIGZpbGw9IiM5Q0EzQUYiLz4KPHBhdGggZD0iTTE1MCAxNjVDMTM1LjYgMTY1IDEyNCAxNTMuNCAxMjQgMTM5QzEyNCAxMjQuNiAxMzUuNiAxMTMgMTUwIDExM0MxNjQuNCAxMTMgMTc2IDEyNC42IDE3NiAxMzlDMTc2IDE1My40IDE2NC40IDE2NSAxNTAgMTY1WiIgZmlsbD0iIzlDQTNBRiIvPgo8L3N2Zz4K";
                           }}
-                        />
-                      </div>
+                      />
+                    </div>
                     ))}
                   </div>
                 )}
@@ -247,8 +247,8 @@ export default function ProductDetailsPage() {
                 <p className="text-gray-500">No images available</p>
               </div>
             )}
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
 
         {/* Product Information */}
         <div className="space-y-6">
@@ -316,94 +316,94 @@ export default function ProductDetailsPage() {
               <p className="text-sm leading-relaxed">{product.description}</p>
             </CardContent>
           </Card>
-        </div>
-      </div>
+              </div>
+              </div>
 
       {/* Product Variants */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Variants</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Variants</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
           {colors.length > 0 && (
-            <div>
-              <div className="flex items-center gap-2 mb-2">
-                <Palette className="h-4 w-4" />
-                <span className="text-sm font-medium">Colors</span>
-              </div>
-              <div className="flex flex-wrap gap-1">
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <Palette className="h-4 w-4" />
+                  <span className="text-sm font-medium">Colors</span>
+                </div>
+                <div className="flex flex-wrap gap-1">
                 {colors.map((color, index) => (
-                  <Badge key={index} variant="outline" className="text-xs">
-                    {color}
-                  </Badge>
-                ))}
+                    <Badge key={index} variant="outline" className="text-xs">
+                      {color}
+                    </Badge>
+                  ))}
+                </div>
               </div>
-            </div>
           )}
 
           {sizes.length > 0 && (
-            <div>
-              <div className="flex items-center gap-2 mb-2">
-                <Ruler className="h-4 w-4" />
-                <span className="text-sm font-medium">Sizes</span>
-              </div>
-              <div className="flex flex-wrap gap-1">
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <Ruler className="h-4 w-4" />
+                  <span className="text-sm font-medium">Sizes</span>
+                </div>
+                <div className="flex flex-wrap gap-1">
                 {sizes.map((size, index) => (
-                  <Badge key={index} variant="outline" className="text-xs">
-                    {size}
-                  </Badge>
-                ))}
+                    <Badge key={index} variant="outline" className="text-xs">
+                      {size}
+                    </Badge>
+                  ))}
+                </div>
               </div>
-            </div>
           )}
 
           {features.length > 0 && (
-            <div>
-              <div className="flex items-center gap-2 mb-2">
+              <div>
+                <div className="flex items-center gap-2 mb-2">
                 <Star className="h-4 w-4" />
                 <span className="text-sm font-medium">Features</span>
-              </div>
-              <div className="flex flex-wrap gap-1">
+                </div>
+                <div className="flex flex-wrap gap-1">
                 {features.map((feature, index) => (
-                  <Badge key={index} variant="outline" className="text-xs">
+                    <Badge key={index} variant="outline" className="text-xs">
                     {feature}
-                  </Badge>
-                ))}
+                    </Badge>
+                  ))}
+                </div>
               </div>
-            </div>
           )}
-        </CardContent>
-      </Card>
+            </CardContent>
+          </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Tag className="h-5 w-5" />
-            Category & Metadata
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="flex justify-between">
-            <span className="text-sm font-medium">Brand:</span>
-            <span className="text-sm">{product.brand}</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-sm font-medium">Category:</span>
-            <Badge variant="secondary">{product.Category.categoryName}</Badge>
-          </div>
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Tag className="h-5 w-5" />
+                Category & Metadata
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex justify-between">
+                <span className="text-sm font-medium">Brand:</span>
+                <span className="text-sm">{product.brand}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-sm font-medium">Category:</span>
+                <Badge variant="secondary">{product.Category.categoryName}</Badge>
+              </div>
           <div className="flex justify-between">
             <span className="text-sm font-medium">Collection:</span>
             <Badge variant="outline">{product.Collection.collectionName}</Badge>
           </div>
-          <Separator />
-          <div className="space-y-2">
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <Calendar className="h-3 w-3" />
-              <span>Created: {formatDate(product.createdAt)}</span>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+              <Separator />
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <Calendar className="h-3 w-3" />
+                  <span>Created: {formatDate(product.createdAt)}</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
       {/* Edit Product Modal */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>

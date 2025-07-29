@@ -34,6 +34,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { toast } from "react-hot-toast";
@@ -114,6 +115,9 @@ export default function CategoryTable() {
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>{editCategoryId ? "Edit Category" : "Add New Category"}</DialogTitle>
+                <DialogDescription>
+                  {editCategoryId ? "Update the category name below." : "Enter a name for the new category."}
+                </DialogDescription>
               </DialogHeader>
               <div className="grid gap-4 py-4">
                 <div className="grid gap-2">

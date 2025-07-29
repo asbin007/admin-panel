@@ -4,13 +4,17 @@ import productSlice from "./productSlice";
 import categorySlice from "./categoriesSlice";
 import collectionSlice from "./collectionSlice";
 import orderSlice from './orderSlice'
+import reviewsSlice from './reviewsSlice'
+import chatSlice from './chatSlice'
 const store = configureStore({
   reducer: {
     auth: authSlice,
     adminProducts: productSlice,
     category: categorySlice,
     collections: collectionSlice,
-    orders:orderSlice
+    orders:orderSlice,
+    reviews: reviewsSlice,
+    chat: chatSlice
   },
 });
 

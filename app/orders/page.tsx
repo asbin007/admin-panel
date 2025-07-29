@@ -184,24 +184,24 @@ export default function Orders() {
           </div>
         </div>
         
-        <Card>
+      <Card>
           <CardHeader>
             <CardTitle>Order Management</CardTitle>
             <CardDescription>View and manage all customer orders from your store.</CardDescription>
-          </CardHeader>
+        </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Order ID</TableHead>
-                  <TableHead>Items</TableHead>
-                  <TableHead>Payment Method</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Payment Status</TableHead>
-                  <TableHead className="text-right">Amount</TableHead>
-                </TableRow>
-              </TableHeader>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Order ID</TableHead>
+                <TableHead>Items</TableHead>
+                <TableHead>Payment Method</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Payment Status</TableHead>
+                <TableHead className="text-right">Amount</TableHead>
+              </TableRow>
+            </TableHeader>
             <TableBody>
               {items.length === 0 ? (
                 <TableRow>
@@ -216,11 +216,11 @@ export default function Orders() {
                 </TableRow>
               ) : (
                 [...items]
-                  .sort(
-                    (a, b) =>
-                      new Date(b.OrderDetail.createdAt).getTime() -
-                      new Date(a.OrderDetail.createdAt).getTime()
-                  )
+                .sort(
+                  (a, b) =>
+                    new Date(b.OrderDetail.createdAt).getTime() -
+                    new Date(a.OrderDetail.createdAt).getTime()
+                )
                   .map((order, index) => (
                   <TableRow key={`${order.id}-${index}`}>
                     <TableCell className="font-medium">
@@ -244,7 +244,7 @@ export default function Orders() {
           </Table>
           </div>
         </CardContent>
-        </Card>
+      </Card>
       </div>
     </AdminLayout>
   );

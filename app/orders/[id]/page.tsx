@@ -44,63 +44,40 @@ function AdminOrderDetail() {
     }
   }, [id, dispatch]);
 
-  // Listen for order status updates from WebSocket
   useEffect(() => {
-    // Check if socket is already connected and authenticated
     if (!socket.connected) {
-      console.log('Order details: Socket not connected (WebSocket may be disabled)');
       return;
     }
-    
-    console.log('Order details: Socket connected, setting up listeners');
 
     const handleOrderStatusUpdate = (data: { orderId: string; status: string }) => {
-      console.log('🔄 Received order status update from server:', data);
-      console.log('📋 Current order ID:', id);
       if (data.orderId === id) {
-        console.log('✅ Order ID matches, refreshing data...');
         dispatch(fetchAdminOrderDetails(id as string));
-      } else {
-        console.log('❌ Order ID mismatch, ignoring update');
       }
     };
 
-    const handlePaymentStatusUpdate = (data: { orderId: string; paymentStatus: string }) => {
-      console.log('💳 Received payment status update from server:', data);
-      console.log('📋 Current order ID:', id);
+    const handlePaymentStatusUpdate = (data: { orderId: string; paymentStatus: string; paymentId: string }) => {
       if (data.orderId === id) {
-        console.log('✅ Order ID matches, refreshing data...');
+        console.log('🔄 Payment status update received:', data);
         dispatch(fetchAdminOrderDetails(id as string));
-      } else {
-        console.log('❌ Order ID mismatch, ignoring update');
       }
     };
 
     const handleConnect = () => {
-      console.log('WebSocket connected');
       setSocketConnected(true);
     };
 
     const handleDisconnect = () => {
-      console.log('WebSocket disconnected');
       setSocketConnected(false);
     };
 
-    const handleError = (error: Error) => {
-      console.error('WebSocket error:', error);
-    };
-
-    // Socket event listeners
     socket.on("connect", handleConnect);
     socket.on("disconnect", handleDisconnect);
-    socket.on("error", handleError);
     socket.on("orderStatusUpdated", handleOrderStatusUpdate);
     socket.on("paymentStatusUpdated", handlePaymentStatusUpdate);
 
     return () => {
       socket.off("connect", handleConnect);
       socket.off("disconnect", handleDisconnect);
-      socket.off("error", handleError);
       socket.off("orderStatusUpdated", handleOrderStatusUpdate);
       socket.off("paymentStatusUpdated", handlePaymentStatusUpdate);
     };
@@ -110,42 +87,30 @@ function AdminOrderDetail() {
     if (id && typeof id === 'string' && orderDetails.length > 0) {
       setIsUpdating(true);
       try {
-        const updateData = {
-          status: value,
-          orderId: id,
-          userId: orderDetails[0].Order.userId,
-        };
-        console.log('🔄 Sending order status update to server:', updateData);
-        console.log('📡 Socket connected:', socket.connected);
-        console.log('🔌 Socket ID:', socket.id);
-        
-        // Check if socket is connected before trying to emit
         if (socket.connected) {
+          const updateData = {
+            status: value,
+        orderId: id,
+        userId: orderDetails[0].Order.userId,
+          };
+          
           socket.emit("updateOrderStatus", updateData);
           
-          // Listen for server acknowledgment
-          socket.once("orderStatusUpdateAcknowledged", (data: unknown) => {
-            console.log('✅ Server acknowledged order status update:', data);
-            // Refresh data after successful update
+          socket.once("statusUpdated", (data) => {
             dispatch(fetchAdminOrderDetails(id));
-          });
-          
-          // Listen for server error
-          socket.once("orderStatusUpdateError", (error: unknown) => {
-            console.error('❌ Server error updating order status:', error);
             setIsUpdating(false);
           });
           
-          // Reset loading state after a short delay
+          socket.once("error", (error) => {
+            console.error('Order status update error:', error);
+            setIsUpdating(false);
+          });
+          
           setTimeout(() => setIsUpdating(false), 2000);
         } else {
-          console.warn('⚠️ WebSocket not connected, updating order status via API instead');
-          // Fallback: Update via API if WebSocket is not available
           const result = await dispatch(updateOrderStatus(id, value, orderDetails[0].Order.userId));
-          if (result.success) {
-            console.log('✅ Order status updated successfully via API');
-          } else {
-            console.error('❌ Failed to update order status via API:', result.error);
+          if (!result.success) {
+            console.error('failed to update order status:', result.error);
           }
           setIsUpdating(false);
         }
@@ -160,65 +125,49 @@ function AdminOrderDetail() {
     if (id && typeof id === 'string' && orderDetails.length > 0) {
       setIsUpdating(true);
       try {
-        // Debug the order details structure
-        console.log('🔍 Order details structure:', orderDetails[0]);
-        console.log('🔍 Payment object:', orderDetails[0].Order?.Payment);
-        console.log('🔍 Order object:', orderDetails[0].Order);
-        console.log('🔍 All available fields:', Object.keys(orderDetails[0]));
-        console.log('🔍 Order object fields:', Object.keys(orderDetails[0].Order || {}));
-        
-        // Get payment ID from the Payment object
         const paymentId = orderDetails[0].Order?.Payment?.id;
         
-        console.log('🔍 Using payment ID:', paymentId);
-        
         if (!paymentId) {
-          console.error('❌ Payment ID not found in order details');
+          console.error('payment id not found');
           setIsUpdating(false);
           return;
         }
         
-        const updateData = {
-          status: value,
-          orderId: id,
-          paymentId: paymentId,
-        };
-        console.log('💳 Sending payment status update to server:', updateData);
-        console.log('📡 Socket connected:', socket.connected);
-        console.log('🔌 Socket ID:', socket.id);
-        
-        // Check if socket is connected before trying to emit
         if (socket.connected) {
+          const updateData = {
+            status: value,
+            paymentId: paymentId,
+            userId: orderDetails[0].Order.userId,
+          };
+          
           socket.emit("updatePaymentStatus", updateData);
           
-          // Listen for server acknowledgment
-          socket.once("paymentStatusUpdateAcknowledged", (data: unknown) => {
-            console.log('✅ Server acknowledged payment status update:', data);
-            // Refresh data after successful update
+          socket.once("paymentStatusUpdated", (data) => {
             dispatch(fetchAdminOrderDetails(id));
-          });
-          
-          // Listen for server error
-          socket.once("paymentStatusUpdateError", (error: unknown) => {
-            console.error('❌ Server error updating payment status:', error);
             setIsUpdating(false);
           });
           
-          // Reset loading state after a short delay
-          setTimeout(() => setIsUpdating(false), 2000);
+          socket.once("error", (error) => {
+            console.error('Payment status update error:', error);
+            setIsUpdating(false);
+          });
+          
+          // fallback timeout
+          setTimeout(() => {
+            if (isUpdating) {
+              dispatch(fetchAdminOrderDetails(id));
+              setIsUpdating(false);
+            }
+          }, 3000);
         } else {
-          console.warn('⚠️ WebSocket not connected, updating payment status via API instead');
-          // Fallback: Update via API if WebSocket is not available
           const result = await dispatch(updatePaymentStatus(id, paymentId, value));
-          if (result.success) {
-            console.log('✅ Payment status updated successfully via API');
-          } else {
-            console.error('❌ Failed to update payment status via API:', result.error);
+          if (!result.success) {
+            console.error('failed to update payment status:', result.error);
           }
           setIsUpdating(false);
         }
       } catch (error) {
-        console.error('❌ Error updating payment status:', error);
+        console.error('error updating payment status:', error);
         setIsUpdating(false);
       }
     }
@@ -252,8 +201,8 @@ function AdminOrderDetail() {
 
   // Loading state
   if (status === "loading" || !orderDetails.length) {
-    return (
-      <AdminLayout>
+  return (
+    <AdminLayout>
         <div className="space-y-6">
           <div className="flex items-center gap-4">
             <Link href="/orders" className="flex items-center gap-2 text-muted-foreground hover:text-foreground">
@@ -276,7 +225,7 @@ function AdminOrderDetail() {
 
   // Error state
   if (status === "error") {
-    return (
+                  return (
       <AdminLayout>
         <div className="space-y-6">
           <div className="flex items-center gap-4">
@@ -284,7 +233,7 @@ function AdminOrderDetail() {
               <ArrowLeft className="h-4 w-4" />
               Back to Orders
             </Link>
-          </div>
+                      </div>
           <Card>
             <CardContent className="flex justify-center items-center h-64">
               <div className="text-center">
@@ -300,10 +249,10 @@ function AdminOrderDetail() {
                 >
                   Try again
                 </button>
-              </div>
+                          </div>
             </CardContent>
           </Card>
-        </div>
+                        </div>
       </AdminLayout>
     );
   }
@@ -335,8 +284,8 @@ function AdminOrderDetail() {
           </div>
           <p className="text-muted-foreground">
             {new Date(order.createdAt).toLocaleDateString()}
-          </p>
-        </div>
+                  </p>
+                </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Order Items */}
@@ -456,7 +405,7 @@ function AdminOrderDetail() {
                      order.Order.Payment.paymentMethod === 'cod' ? 'Cash on Delivery' :
                      order.Order.Payment.paymentMethod}
                   </span>
-                </div>
+              </div>
                 <div className="flex justify-between items-center">
                   <span>Status</span>
                   {getPaymentStatusBadge(order.Order.Payment.paymentStatus)}
@@ -514,7 +463,7 @@ function AdminOrderDetail() {
                     {isUpdating && (
                       <p className="text-xs text-muted-foreground">Updating...</p>
                     )}
-                  </div>
+              </div>
                 )}
               </CardContent>
             </Card>
