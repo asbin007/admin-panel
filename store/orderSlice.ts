@@ -149,3 +149,53 @@ export function fetchAdminOrderDetails(id: string) {
     }
   };
 }
+
+export function updateOrderStatus(orderId: string, status: string, userId: string) {
+  return async function updateOrderStatusThunk(dispatch: AppDispatch) {
+    try {
+      console.log("🔄 Updating order status via API:", { orderId, status, userId });
+      const response = await APIS.patch(`/order/${orderId}`, {
+        status,
+        userId
+      });
+      console.log("Order status update response:", response);
+      if (response.status === 200 || response.status === 201) {
+        console.log("✅ Order status updated successfully via API");
+        // Refresh the order details after successful update
+        dispatch(fetchAdminOrderDetails(orderId));
+        return { success: true };
+      } else {
+        console.log("❌ Order status update failed:", response.status);
+        return { success: false, error: "Failed to update order status" };
+      }
+    } catch (error) {
+      console.error("❌ Order status update error:", error);
+      return { success: false, error: "Network error updating order status" };
+    }
+  };
+}
+
+export function updatePaymentStatus(orderId: string, paymentId: string, status: string) {
+  return async function updatePaymentStatusThunk(dispatch: AppDispatch) {
+    try {
+      console.log("💳 Updating payment status via API:", { orderId, paymentId, status });
+      const response = await APIS.patch(`/payment/${paymentId}`, {
+        paymentStatus: status,
+        orderId
+      });
+      console.log("Payment status update response:", response);
+      if (response.status === 200 || response.status === 201) {
+        console.log("✅ Payment status updated successfully via API");
+        // Refresh the order details after successful update
+        dispatch(fetchAdminOrderDetails(orderId));
+        return { success: true };
+      } else {
+        console.log("❌ Payment status update failed:", response.status);
+        return { success: false, error: "Failed to update payment status" };
+      }
+    } catch (error) {
+      console.error("❌ Payment status update error:", error);
+      return { success: false, error: "Network error updating payment status" };
+    }
+  };
+}

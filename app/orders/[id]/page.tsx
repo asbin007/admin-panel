@@ -12,7 +12,7 @@ import {
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
-import { fetchAdminOrderDetails, OrderStatus, PaymentStatus } from "@/store/orderSlice";
+import { fetchAdminOrderDetails, updateOrderStatus, updatePaymentStatus, OrderStatus, PaymentStatus } from "@/store/orderSlice";
 import { socket } from "@/app/app";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -106,7 +106,7 @@ function AdminOrderDetail() {
     };
   }, [id, dispatch, socket.connected]);
 
-  const handleOrderStatusChange = (value: string) => {
+  const handleOrderStatusChange = async (value: string) => {
     if (id && typeof id === 'string' && orderDetails.length > 0) {
       setIsUpdating(true);
       try {
@@ -141,10 +141,13 @@ function AdminOrderDetail() {
         } else {
           console.warn('⚠️ WebSocket not connected, updating order status via API instead');
           // Fallback: Update via API if WebSocket is not available
-          // You can implement an API call here if needed
+          const result = await dispatch(updateOrderStatus(id, value, orderDetails[0].Order.userId));
+          if (result.success) {
+            console.log('✅ Order status updated successfully via API');
+          } else {
+            console.error('❌ Failed to update order status via API:', result.error);
+          }
           setIsUpdating(false);
-          // For now, just refresh the data
-          dispatch(fetchAdminOrderDetails(id));
         }
       } catch (error) {
         console.error('❌ Error updating order status:', error);
@@ -153,7 +156,7 @@ function AdminOrderDetail() {
     }
   };
 
-  const handlePaymentStatusChange = (value: string) => {
+  const handlePaymentStatusChange = async (value: string) => {
     if (id && typeof id === 'string' && orderDetails.length > 0) {
       setIsUpdating(true);
       try {
@@ -206,10 +209,13 @@ function AdminOrderDetail() {
         } else {
           console.warn('⚠️ WebSocket not connected, updating payment status via API instead');
           // Fallback: Update via API if WebSocket is not available
-          // You can implement an API call here if needed
+          const result = await dispatch(updatePaymentStatus(id, paymentId, value));
+          if (result.success) {
+            console.log('✅ Payment status updated successfully via API');
+          } else {
+            console.error('❌ Failed to update payment status via API:', result.error);
+          }
           setIsUpdating(false);
-          // For now, just refresh the data
-          dispatch(fetchAdminOrderDetails(id));
         }
       } catch (error) {
         console.error('❌ Error updating payment status:', error);
