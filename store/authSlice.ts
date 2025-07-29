@@ -58,7 +58,12 @@ const userSlice = createSlice({
     logout(state: IInitialState) {
      state.user = [];
   state.status = Status.LOADING;
-  Cookies.remove("tokenauth");     },
+  Cookies.remove("tokenauth");
+  // Also clear localStorage
+  if (typeof window !== 'undefined') {
+    localStorage.removeItem("tokenHoYo");
+  }
+     },
   },
 });
 
@@ -78,7 +83,14 @@ export function loginUser(data:  { email: string; password: string }) {
           const userId=response.data.user?.id ??'default'
 
         if (token &&userId) {
+          console.log('AuthSlice: Storing token:', token);
+          console.log('AuthSlice: User ID:', userId);
           Cookies.set("tokenauth", token,{expires:7});
+          // Also store in localStorage for WebSocket compatibility
+          if (typeof window !== 'undefined') {
+            localStorage.setItem("tokenHoYo", token);
+            console.log('AuthSlice: Token stored in localStorage');
+          }
           dispatch(setToken({token,id:userId}));
           return token
         } else {

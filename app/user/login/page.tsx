@@ -11,10 +11,11 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useAppDispatch, useAppSelector } from "@/store/hooks";
+import { useAppDispatch } from "@/store/hooks";
 import { ChangeEvent, FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { loginUser } from "@/store/authSlice";
+import store from "@/store/store";
 
 export const description =
   "A login form with email and password. There's an option to login with Google and a link to sign up if you don't have an account.";
@@ -22,7 +23,6 @@ export const description =
 export default function LoginForm() {
   const router = useRouter();
   const dispatch = useAppDispatch();
-  const { user } = useAppSelector((store) => store.auth);
   const [data, setData] = useState({
     email: "",
     password: "",
@@ -38,9 +38,20 @@ export default function LoginForm() {
 
   const handleSubmit = async(e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    await dispatch(loginUser(data));
-    if (user) {
-      router.push("/");
+    try {
+      const result = await dispatch(loginUser(data));
+      console.log('Login result:', result);
+      
+      // Check if login was successful by looking at the status
+      const currentStatus = store.getState().auth.status;
+      if (currentStatus === 'success') {
+        console.log('Login successful, redirecting...');
+        router.push("/");
+      } else {
+        console.log('Login failed, status:', currentStatus);
+      }
+    } catch (error) {
+      console.error('Login error:', error);
     }
   };
 

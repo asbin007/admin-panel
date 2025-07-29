@@ -105,15 +105,20 @@ const { setItems, setStatus, setOrderDetails } = orderSlice.actions;
 export function fetchOrders() {
   return async function fetchOrdersThunk(dispatch: AppDispatch) {
     try {
+      dispatch(setStatus(Status.LOADING));
+      console.log("Fetching orders...");
       const response = await APIS.get("/order/all");
+      console.log("Orders response:", response);
       if (response.status === 201) {
         dispatch(setStatus(Status.SUCCESS));
         dispatch(setItems(response.data.data));
+        console.log("Orders data:", response.data.data);
       } else {
+        console.log("Orders response status not 201:", response.status);
         dispatch(setStatus(Status.ERROR));
       }
     } catch (error) {
-      console.log(error);
+      console.log("Orders fetch error:", error);
       dispatch(setStatus(Status.ERROR));
     }
   };
@@ -122,15 +127,24 @@ export function fetchOrders() {
 export function fetchAdminOrderDetails(id: string) {
   return async function fetchAdminOrderDetailsThunk(dispatch: AppDispatch) {
     try {
+      console.log("Fetching order details for ID:", id);
       const response = await APIS.get("/order/" + id);
+      console.log("Order details response:", response);
       if (response.status === 200) {
         dispatch(setStatus(Status.SUCCESS));
         dispatch(setOrderDetails(response.data.data));
+        console.log("Order details data:", response.data.data);
       } else {
+        console.log("Order details response status not 200:", response.status);
         dispatch(setStatus(Status.ERROR));
       }
     } catch (error) {
-      console.log(error);
+      console.error("Order details fetch error:", error);
+      if (error && typeof error === 'object' && 'code' in error) {
+        if (error.code === 'ERR_NETWORK') {
+          console.error("❌ Backend server is not running. Please start your backend server on port 5001");
+        }
+      }
       dispatch(setStatus(Status.ERROR));
     }
   };
