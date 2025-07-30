@@ -18,21 +18,21 @@ if (typeof window !== 'undefined') {
 
 export function AppProviders({ children }: { children: React.ReactNode }) {
   useEffect(() => {
-    const ENABLE_WEBSOCKET = false; // Temporarily disable WebSocket
+    const ENABLE_WEBSOCKET = true; // Enable WebSocket for chat functionality
     
     if (!ENABLE_WEBSOCKET) {
       return;
     }
     
     const setupSocket = () => {
-      const token = typeof window !== 'undefined' ? localStorage.getItem("tokenHoYo") || document.cookie.split('; ').find(row => row.startsWith('tokenauth='))?.split('=')[1] : null;
+      const token = typeof window !== 'undefined' ? localStorage.getItem("tokenauth") || document.cookie.split('; ').find(row => row.startsWith('tokenauth='))?.split('=')[1] : null;
       
       if (token) {
         // @ts-expect-error - Socket.io auth property
         socket.auth = { token };
       }
       
-    socket.connect();
+      socket.connect();
     };
 
     socket.on('connect', () => {
@@ -68,7 +68,7 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    const ENABLE_WEBSOCKET = false; // Temporarily disable WebSocket
+    const ENABLE_WEBSOCKET = true; // Enable WebSocket for chat functionality
     
     if (!ENABLE_WEBSOCKET) {
       return;

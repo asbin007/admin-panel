@@ -1,85 +1,65 @@
 "use client";
-import Link from "next/link";
-import { Eye, EyeOff, Lock, Mail, ArrowRight, Loader2, Package2 } from "lucide-react";
+
+import { useState } from "react";
+import { Eye, EyeOff, Shield, Lock, Mail, ArrowRight, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { useAppDispatch } from "@/store/hooks";
-import { ChangeEvent, FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
-import { loginUser } from "@/store/authSlice";
-import store from "@/store/store";
+import Link from "next/link";
 
-export const description =
-  "A login form with email and password. There's an option to login with Google and a link to sign up if you don't have an account.";
-
-export default function LoginForm() {
-  const router = useRouter();
-  const dispatch = useAppDispatch();
-  const [data, setData] = useState({
-    email: "",
-    password: "",
-  });
+export default function SuperAdminLogin() {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const router = useRouter();
 
-  const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setData({
-      ...data,
-      [name]: value,
-    });
-  };
-
-  const handleSubmit = async(e: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError("");
     setSuccess("");
 
     try {
-      const result = await dispatch(loginUser(data));
-      console.log('Login result:', result);
+      const { API } = await import("@/globals/http");
       
-      // Check if login was successful by looking at the status
-      const currentStatus = store.getState().auth.status;
-      if (currentStatus === 'success') {
-        // Get user data from Redux store
-        const userData = store.getState().auth.user;
-        
-        // Save user data to localStorage for role-based access
-        if (userData && Array.isArray(userData) && userData.length > 0) {
-          const user = userData[0];
-          localStorage.setItem("userData", JSON.stringify({
-            id: user.id,
-            username: user.username,
-            email: user.email,
-            role: user.role || 'admin'
-          }));
-        }
-        
+      const response = await API.post("/super-admin/login", {
+        email,
+        password
+      });
+
+      const data = response.data;
+
+      if (response.status === 200) {
         setSuccess("Login successful! Redirecting...");
-        console.log('Login successful, redirecting...');
+        
+        // Store token and user data
+        localStorage.setItem("tokenauth", data.token);
+        localStorage.setItem("userData", JSON.stringify({
+          id: data.id,
+          username: data.username,
+          email: data.email,
+          role: data.role
+        }));
+
+        // Set cookie for token
+        document.cookie = `tokenauth=${data.token}; path=/; max-age=${30 * 24 * 60 * 60}`;
+
+        // Redirect to super admin dashboard
         setTimeout(() => {
-          router.push("/dashboard");
+          router.push("/super-admin/dashboard");
         }, 1500);
       } else {
-        setError("Invalid email or password");
-        console.log('Login failed, status:', currentStatus);
+        setError(data.message || "Login failed");
       }
-    } catch (error) {
-      console.error('Login error:', error);
-      setError("Network error. Please try again.");
+    } catch (error: any) {
+      console.error("Login error:", error);
+      setError(error.response?.data?.message || "Network error. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -91,13 +71,13 @@ export default function LoginForm() {
         {/* Logo and Brand */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-2xl mb-4 shadow-lg">
-            <Package2 className="h-8 w-8 text-white" />
+            <Shield className="h-8 w-8 text-white" />
           </div>
           <h1 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">
             SHOEMART
           </h1>
           <p className="text-slate-600 dark:text-slate-400">
-            Admin Portal
+            Super Admin Portal
           </p>
         </div>
 
@@ -105,10 +85,10 @@ export default function LoginForm() {
         <Card className="shadow-2xl border-0 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm">
           <CardHeader className="space-y-1 pb-6">
             <CardTitle className="text-2xl font-bold text-center text-slate-900 dark:text-white">
-              Admin Login
+              Super Admin Login
             </CardTitle>
             <CardDescription className="text-center text-slate-600 dark:text-slate-400">
-              Sign in to access the admin dashboard
+              Access the highest level of administrative control
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -122,11 +102,10 @@ export default function LoginForm() {
                   <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
                   <Input
                     id="email"
-                    name="email"
                     type="email"
-                    placeholder="admin@shoemart.com"
-                    value={data.email}
-                    onChange={handleChange}
+                    placeholder="superadmin@shoemart.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
                     className="pl-10 h-12 bg-white/70 dark:bg-slate-700/70 border-slate-200 dark:border-slate-600 focus:ring-2 focus:ring-blue-500/20 transition-all duration-200"
                     required
                     disabled={isLoading}
@@ -143,11 +122,10 @@ export default function LoginForm() {
                   <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
                   <Input
                     id="password"
-                    name="password"
                     type={showPassword ? "text" : "password"}
                     placeholder="Enter your password"
-                    value={data.password}
-                    onChange={handleChange}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
                     className="pl-10 pr-10 h-12 bg-white/70 dark:bg-slate-700/70 border-slate-200 dark:border-slate-600 focus:ring-2 focus:ring-blue-500/20 transition-all duration-200"
                     required
                     disabled={isLoading}
@@ -199,7 +177,7 @@ export default function LoginForm() {
                   </>
                 ) : (
                   <>
-                    Sign In as Admin
+                    Sign In as Super Admin
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </>
                 )}
@@ -218,12 +196,12 @@ export default function LoginForm() {
               </div>
             </div>
 
-            {/* Super Admin Login Link */}
+            {/* Admin Login Link */}
             <div className="text-center">
               <p className="text-sm text-slate-600 dark:text-slate-400">
-                Super admin?{" "}
+                Regular admin?{" "}
                 <Link
-                  href="/super-admin/login"
+                  href="/user/login"
                   className="font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 transition-colors"
                 >
                   Sign in here
@@ -239,10 +217,10 @@ export default function LoginForm() {
             © 2024 SHOEMART. All rights reserved.
           </p>
           <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
-            Admin Access Only
+            Super Admin Access Only
           </p>
         </div>
       </div>
     </div>
   );
-}
+} 
