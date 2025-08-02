@@ -11,7 +11,6 @@ import {
   Star,
   Users,
   MessageCircle,
-  Shield,
   Settings,
   LogOut,
 } from "lucide-react";
@@ -45,13 +44,34 @@ export default function AdminLayout({
   const dispatch = useAppDispatch();
   const { unreadCount } = useAppSelector((store) => store.chat);
   const [isChecking, setIsChecking] = useState(true);
-  const [user, setUser] = useState<any>(null);
-  const [notifications, setNotifications] = useState<Array<{
+  interface User {
     id: string;
-    message: any;
+    username: string;
+    email: string;
+    role: 'admin';
+    isVerified?: boolean;
+  }
+  
+  const [user, setUser] = useState<User | null>(null);
+  interface Notification {
+    id: string;
+    message: {
+      id: string;
+      content: string;
+      senderId: string;
+      chatId: string;
+      createdAt: string;
+      Sender?: {
+        id: string;
+        username: string;
+        role: string;
+      };
+    };
     customerName: string;
     chatId: string;
-  }>>([]);
+  }
+  
+  const [notifications, setNotifications] = useState<Notification[]>([]);
 
   // useEffect(() => {
     
@@ -63,30 +83,66 @@ export default function AdminLayout({
   // }, []);
   
   useEffect(() => {
+    console.log('AdminLayout: Checking authentication...');
     const token = Cookies.get("tokenauth");
+    console.log('AdminLayout: Token exists:', !!token);
+    
     if (!token) {
+      console.log('AdminLayout: No token found, redirecting to login');
       router.push("/user/login");
-    } else {
-      // Load user data
-      const userData = localStorage.getItem("userData");
-      if (userData) {
-        setUser(JSON.parse(userData));
-      }
-      setIsChecking(false);
+      return;
     }
+    
+    // Load user data
+    const userData = localStorage.getItem("userData");
+    console.log('AdminLayout: User data exists:', !!userData);
+    
+    if (userData) {
+      try {
+        const parsedUser = JSON.parse(userData);
+        console.log('AdminLayout: Parsed user data:', parsedUser);
+        setUser(parsedUser);
+        
+        // Check if user has proper role and is verified
+        if (parsedUser.role !== 'admin') {
+          console.log('AdminLayout: Invalid role, redirecting to login');
+          router.push("/user/login");
+          return;
+        }
+        
+        // Check if admin is verified
+        if (!parsedUser.isVerified) {
+          console.log('AdminLayout: Admin not verified, redirecting to login');
+          router.push("/user/login");
+          return;
+        }
+        
+        console.log('AdminLayout: Authentication successful, user:', parsedUser.username);
+      } catch (error) {
+        console.error('AdminLayout: Error parsing user data:', error);
+        router.push("/user/login");
+        return;
+      }
+    } else {
+      console.log('AdminLayout: No user data found, redirecting to login');
+      router.push("/user/login");
+      return;
+    }
+    
+    setIsChecking(false);
   }, [router]);
 
   // Socket event listeners for notifications
   useEffect(() => {
     // Listen for new messages when not on chat page
-    const handleNewMessage = (message: any) => {
+    const handleNewMessage = (message: { chatId: string; message: string }) => {
       // Only show notification if not on chat page
       if (typeof window !== 'undefined' && !window.location.pathname.includes('/chat')) {
-        addNotification(message, "Customer", message.chatId);
+        addNotification(message.message, "Customer", message.chatId);
       }
     };
 
-    const handleNewMessageNotification = ({ chatId, message, sender }: any) => {
+    const handleNewMessageNotification = ({ chatId, message }: { chatId: string; message: string }) => {
       // Only show notification if not on chat page
       if (typeof window !== 'undefined' && !window.location.pathname.includes('/chat')) {
         addNotification(message, "Customer", chatId);
@@ -108,11 +164,24 @@ export default function AdminLayout({
   };
 
   // Notification functions
-  const addNotification = (message: any, customerName: string, chatId: string) => {
-    const notificationId = Date.now().toString();
+  const addNotification = (messageContent: string, customerName: string, chatId: string) => {
+    const notificationId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const messageObject = {
+      id: notificationId,
+      content: messageContent,
+      senderId: 'customer',
+      chatId: chatId,
+      createdAt: new Date().toISOString(),
+      Sender: {
+        id: 'customer',
+        username: customerName,
+        role: 'customer'
+      }
+    };
+    
     setNotifications(prev => [...prev, {
       id: notificationId,
-      message,
+      message: messageObject,
       customerName,
       chatId
     }]);
@@ -128,7 +197,7 @@ export default function AdminLayout({
   };
 
   const openChatFromNotification = (chatId: string) => {
-    router.push('/chat');
+    router.push(`/chat?chatId=${chatId}`);
   };
 
   if(isChecking){
@@ -196,13 +265,20 @@ export default function AdminLayout({
                 <Star className="h-4 w-4" />
                 Reviews
               </Link>
-              <Link
-                href="/chat"
-                className="flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary"
-              >
-                <MessageCircle className="h-4 w-4" />
-                Chat
-              </Link>
+                             <Link
+                 href="/chat"
+                 className="flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary"
+               >
+                 <MessageCircle className="h-4 w-4" />
+                 Chat
+               </Link>
+               <Link
+                 href="/settings"
+                 className="flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary"
+               >
+                 <Settings className="h-4 w-4" />
+                 Settings
+               </Link>
 
             </nav>
           </div>
@@ -278,13 +354,20 @@ export default function AdminLayout({
                   <Star className="h-5 w-5" />
                   Reviews
                 </Link>
-                <Link
-                  href="/chat"
-                  className="mx-[-0.65rem] flex items-center gap-4 rounded-xl px-3 py-2 text-muted-foreground hover:text-foreground"
-                >
-                  <MessageCircle className="h-5 w-5" />
-                  Chat
-                </Link>
+                                 <Link
+                   href="/chat"
+                   className="mx-[-0.65rem] flex items-center gap-4 rounded-xl px-3 py-2 text-muted-foreground hover:text-foreground"
+                 >
+                   <MessageCircle className="h-5 w-5" />
+                   Chat
+                 </Link>
+                 <Link
+                   href="/settings"
+                   className="mx-[-0.65rem] flex items-center gap-4 rounded-xl px-3 py-2 text-muted-foreground hover:text-foreground"
+                 >
+                   <Settings className="h-5 w-5" />
+                   Settings
+                 </Link>
 
               </nav>
 
@@ -324,39 +407,26 @@ export default function AdminLayout({
                   <p className="text-xs leading-none text-muted-foreground">
                     {user?.email || "admin@shoemart.com"}
                   </p>
-                  <Badge variant="secondary" className="w-fit mt-1">
-                    {user?.role === 'super_admin' ? 'Super Admin' : 'Admin'}
-                  </Badge>
+                                     <Badge variant="secondary" className="w-fit mt-1">
+                     Admin
+                   </Badge>
+                   <p className="text-xs text-muted-foreground">
+                     Role: {user?.role || 'Unknown'}
+                   </p>
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
               
-              {/* Switch Role Options */}
-              {user?.role === 'super_admin' && (
-                <>
-                  <DropdownMenuItem asChild>
-                    <Link href="/" className="flex items-center">
-                      <Shield className="h-4 w-4 mr-2" />
-                      Switch to Admin Panel
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                </>
-              )}
               
-              {/* Always show switch to super admin for testing */}
-              <DropdownMenuItem asChild>
-                <Link href="/super-admin/dashboard" className="flex items-center">
-                  <Shield className="h-4 w-4 mr-2" />
-                  Switch to Super Admin
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
               
-              <DropdownMenuItem>
-                <Settings className="h-4 w-4 mr-2" />
-                Settings
-              </DropdownMenuItem>
+              {/* Remove the unsafe "Always show switch to super admin for testing" section */}
+              
+                             <DropdownMenuItem asChild>
+                 <Link href="/settings" className="flex items-center">
+                   <Settings className="h-4 w-4 mr-2" />
+                   Settings
+                 </Link>
+               </DropdownMenuItem>
               <DropdownMenuItem>
                 <MessageCircle className="h-4 w-4 mr-2" />
                 Support
@@ -376,7 +446,7 @@ export default function AdminLayout({
 
       {/* Notification Toasts */}
       {notifications.map((notification, index) => (
-        <div key={notification.id} style={{ top: `${4 + (index * 5)}rem` }}>
+        <div key={`notification-${notification.id}-${index}`} style={{ top: `${4 + (index * 5)}rem` }}>
           <NotificationToast
             message={notification.message}
             customerName={notification.customerName}

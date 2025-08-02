@@ -4,11 +4,18 @@ import { Provider } from 'react-redux';
 import store from '@/store/store';
 import { ThemeProvider } from '@/components/ui/theme-provider';
 import io from 'socket.io-client';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
-// Create socket instance outside React (global-like)
-export const socket = io("http://localhost:5001", {
-  autoConnect: false, // We'll manually connect in `AppProviders`
+// Create socket instance with better configuration
+export const socket = io("http://localhost:5001", { // Backend port
+  autoConnect: false,
+  transports: ['websocket', 'polling'], // Try WebSocket first, then polling
+  timeout: 10000, // 10 second timeout
+  forceNew: true,
+  reconnection: true,
+  reconnectionAttempts: 5,
+  reconnectionDelay: 1000,
+  reconnectionDelayMax: 5000,
 });
 
 // Make socket available globally
@@ -17,65 +24,159 @@ if (typeof window !== 'undefined') {
 }
 
 export function AppProviders({ children }: { children: React.ReactNode }) {
+  const [isWebSocketEnabled, setIsWebSocketEnabled] = useState(true);
+  const [connectionStatus, setConnectionStatus] = useState<'disconnected' | 'connecting' | 'connected' | 'error'>('disconnected');
+
   useEffect(() => {
-    const ENABLE_WEBSOCKET = true; // Enable WebSocket for chat functionality
+    const ENABLE_WEBSOCKET = true; // Enable WebSocket for real-time updates
     
     if (!ENABLE_WEBSOCKET) {
+      setIsWebSocketEnabled(false);
       return;
     }
     
+    let reconnectTimeout: NodeJS.Timeout;
+    let connectionCheckTimeout: NodeJS.Timeout;
+    
     const setupSocket = () => {
-      const token = typeof window !== 'undefined' ? localStorage.getItem("tokenauth") || document.cookie.split('; ').find(row => row.startsWith('tokenauth='))?.split('=')[1] : null;
-      
-      if (token) {
-        // @ts-expect-error - Socket.io auth property
-        socket.auth = { token };
+      try {
+        const token = typeof window !== 'undefined' ? 
+          localStorage.getItem("tokenauth") || 
+          document.cookie.split('; ').find(row => row.startsWith('tokenauth='))?.split('=')[1] : 
+          null;
+        
+        if (token && !socket.connected) {
+          setConnectionStatus('connecting');
+          console.log('🔐 Connecting with token:', token.substring(0, 20) + '...');
+          // @ts-expect-error - Socket.io auth property
+          socket.auth = { token };
+          socket.connect();
+          
+          // Set a timeout to check if connection is successful
+          connectionCheckTimeout = setTimeout(() => {
+            if (!socket.connected) {
+              setConnectionStatus('error');
+              console.warn('WebSocket connection timeout - server might not be running');
+            }
+          }, 5000);
+        } else if (!token) {
+          console.log('No authentication token found - WebSocket disabled');
+          setIsWebSocketEnabled(false);
+          setConnectionStatus('disconnected');
+        }
+      } catch (error) {
+        console.error('Error setting up WebSocket:', error);
+        setConnectionStatus('error');
       }
-      
-      socket.connect();
     };
 
     socket.on('connect', () => {
-      console.log('websocket connected');
+      console.log('✅ WebSocket connected successfully to port 5001');
+      setConnectionStatus('connected');
+      setIsWebSocketEnabled(true);
+      // Clear any pending reconnect attempts
+      if (reconnectTimeout) {
+        clearTimeout(reconnectTimeout);
+      }
+      if (connectionCheckTimeout) {
+        clearTimeout(connectionCheckTimeout);
+      }
     });
     
     socket.on('connect_error', (error: unknown) => {
-      console.error('websocket error:', error);
+      console.error('❌ WebSocket connection error:', error);
+      setConnectionStatus('error');
+      
+      // Clear connection check timeout
+      if (connectionCheckTimeout) {
+        clearTimeout(connectionCheckTimeout);
+      }
+      
       if (error && typeof error === 'object' && 'message' in error) {
         const errorMessage = String(error.message);
+        
+        // Handle specific error types
+        if (errorMessage.includes('xhr poll error') || errorMessage.includes('Network Error')) {
+          console.warn('🌐 Network error - WebSocket server might not be running on port 5001');
+          console.warn('💡 Make sure your backend server is running and has WebSocket support');
+          setConnectionStatus('error');
+          return;
+        }
+        
+        if (errorMessage.includes('Please provide token') || errorMessage.includes('Unauthorized')) {
+          console.warn('🔐 Authentication error - Token might be invalid or expired');
+          console.warn('💡 WebSocket disabled - using API fallback only');
+          setIsWebSocketEnabled(false);
+          setConnectionStatus('disconnected');
+          return;
+        }
+        
         if (errorMessage.includes('No user found') || errorMessage.includes('Please provide token')) {
-          setTimeout(() => {
-            if (!socket.connected) {
+          // Only attempt reconnect if not already connected
+          if (!socket.connected) {
+            reconnectTimeout = setTimeout(() => {
               setupSocket();
-            }
-          }, 2000);
+            }, 3000);
+          }
         }
       }
     });
     
-    socket.on('disconnect', () => {
-      console.log('websocket disconnected');
+    socket.on('disconnect', (reason: string) => {
+      console.log('🔌 WebSocket disconnected:', reason);
+      setConnectionStatus('disconnected');
+      
+      // Only attempt reconnect for certain disconnect reasons
+      if (reason === 'io server disconnect' || reason === 'io client disconnect') {
+        // Server or client initiated disconnect - don't reconnect
+        return;
+      }
+      
+      // For other reasons, attempt reconnect
+      if (isWebSocketEnabled) {
+        reconnectTimeout = setTimeout(() => {
+          setupSocket();
+        }, 2000);
+      }
     });
     
+    socket.on('reconnect_attempt', (attemptNumber: number) => {
+      console.log(`🔄 WebSocket reconnection attempt ${attemptNumber}`);
+      setConnectionStatus('connecting');
+    });
+    
+    socket.on('reconnect_failed', () => {
+      console.error('❌ WebSocket reconnection failed after all attempts');
+      setConnectionStatus('error');
+      setIsWebSocketEnabled(false);
+    });
+    
+    // Initial setup
     setupSocket();
 
     return () => {
       socket.off('connect');
       socket.off('connect_error');
       socket.off('disconnect');
-      socket.disconnect();
+      socket.off('reconnect_attempt');
+      socket.off('reconnect_failed');
+      
+      if (reconnectTimeout) {
+        clearTimeout(reconnectTimeout);
+      }
+      if (connectionCheckTimeout) {
+        clearTimeout(connectionCheckTimeout);
+      }
+      
+      if (socket.connected) {
+        socket.disconnect();
+      }
     };
-  }, []);
+  }, [isWebSocketEnabled]);
 
   useEffect(() => {
-    const ENABLE_WEBSOCKET = true; // Enable WebSocket for chat functionality
-    
-    if (!ENABLE_WEBSOCKET) {
-      return;
-    }
-    
     const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'tokenHoYo') {
+      if (e.key === 'tokenauth') {
         if (socket.connected) {
           socket.disconnect();
         }
@@ -85,6 +186,27 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
     window.addEventListener('storage', handleStorageChange);
     return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
+
+  // Show connection status in development
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'development' && isWebSocketEnabled) {
+      const statusColors = {
+        disconnected: 'text-gray-500',
+        connecting: 'text-yellow-500',
+        connected: 'text-green-500',
+        error: 'text-red-500'
+      };
+      
+      const statusText = {
+        disconnected: '🔌 Disconnected',
+        connecting: '🔄 Connecting...',
+        connected: '✅ Connected',
+        error: '❌ Error'
+      };
+      
+      console.log(`WebSocket Status: ${statusText[connectionStatus]}`);
+    }
+  }, [connectionStatus, isWebSocketEnabled]);
 
   return (
     <Provider store={store}>

@@ -53,23 +53,40 @@ export default function LoginForm() {
       
       // Check if login was successful by looking at the status
       const currentStatus = store.getState().auth.status;
+      console.log('Current auth status:', currentStatus);
+      
       if (currentStatus === 'success') {
         // Get user data from Redux store
         const userData = store.getState().auth.user;
+        console.log('User data from store:', userData);
         
         // Save user data to localStorage for role-based access
         if (userData && Array.isArray(userData) && userData.length > 0) {
           const user = userData[0];
-          localStorage.setItem("userData", JSON.stringify({
+          const userInfo = {
             id: user.id,
             username: user.username,
             email: user.email,
-            role: user.role || 'admin'
-          }));
+            role: user.role || 'admin',
+            isVerified: true
+          };
+          localStorage.setItem("userData", JSON.stringify(userInfo));
+          console.log('User data saved to localStorage:', userInfo);
+        } else {
+          // Fallback: create user data from login response
+          const userInfo = {
+            id: data.email, // Use email as ID if not available
+            username: data.email.split('@')[0], // Use email prefix as username
+            email: data.email,
+            role: 'admin',
+            isVerified: true
+          };
+          localStorage.setItem("userData", JSON.stringify(userInfo));
+          console.log('Fallback user data saved:', userInfo);
         }
         
         setSuccess("Login successful! Redirecting...");
-        console.log('Login successful, redirecting...');
+        console.log('Login successful, redirecting to dashboard...');
         setTimeout(() => {
           router.push("/dashboard");
         }, 1500);

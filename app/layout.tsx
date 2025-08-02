@@ -1,7 +1,7 @@
   import type { Metadata } from "next";
-  import { Geist, Geist_Mono } from "next/font/google";
-  import "./globals.css";
-  import { AppProviders } from "./app";
+import { Geist, Geist_Mono } from "next/font/google";
+import "./globals.css";
+import { AppProviders } from "./app";
   
 
   const geistSans = Geist({
@@ -27,9 +27,9 @@
     return (
       <html lang="en" suppressHydrationWarning={true}>
         <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
-          <AppProviders>
-            {children}
-          </AppProviders>
+                      <AppProviders>
+              {children}
+            </AppProviders>
         </body>
       </html>
     );
