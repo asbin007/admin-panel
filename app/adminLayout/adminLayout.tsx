@@ -37,6 +37,7 @@ import Cookies from "js-cookie";
 import { socket } from "@/app/app";
 import NotificationToast from "@/components/NotificationToast";
 
+
 export default function AdminLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
@@ -455,6 +456,8 @@ export default function AdminLayout({
           />
         </div>
       ))}
+      
+
     </div>
   );
 }

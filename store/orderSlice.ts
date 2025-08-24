@@ -96,7 +96,7 @@ const orderSlice = createSlice({
     setStatus(state: IIOrder, action: PayloadAction<Status>) {
       state.status = action.payload;
     },
-    
+
   }
 });
 export default orderSlice.reducer;
@@ -145,148 +145,200 @@ export function fetchAdminOrderDetails(id: string) {
 
 export function updateOrderStatus(orderId: string, status: string, userId: string) {
   return async function updateOrderStatusThunk(dispatch: AppDispatch) {
-    // Use WebSocket if available, otherwise fallback to local update
+    console.log('🔄 Starting order status update:', { orderId, status, userId });
+    
+    // Try WebSocket first if available
     if (typeof window !== 'undefined' && (window as any).socket && (window as any).socket.connected) {
+      console.log('🌐 WebSocket connected, attempting real-time update');
+      
       return new Promise((resolve) => {
-        const updateData = { status, orderId, userId };
-        console.log('📤 Sending order status update:', updateData);
-        (window as any).socket.emit('updateOrderStatus', updateData);
+        // Get the authenticated user ID from WebSocket if available
+        const socket = (window as any).socket;
+        const authenticatedUserId = socket.authenticatedUserId || userId;
+        
+        const updateData = { status, orderId, userId: authenticatedUserId };
+        console.log('📤 Sending order status update via WebSocket:', updateData);
+        socket.emit('updateOrderStatus', updateData);
+        
+        // Also broadcast to all clients for real-time updates
+        socket.emit('broadcastOrderUpdate', { orderId, status });
         
         // Listen for the response
         const handleStatusUpdated = (data: any) => {
-          console.log('🔄 Order status update response received:', data);
+          console.log('✅ Order status update response received:', data);
           if (data.orderId === orderId) {
             (window as any).socket.off('statusUpdated', handleStatusUpdated);
+            (window as any).socket.off('error', handleError);
+            (window as any).socket.off('timeout', handleTimeout);
+            
+            // Refresh order details
             dispatch(fetchAdminOrderDetails(orderId));
-            resolve({ success: true });
+            resolve({ success: true, method: 'websocket' });
           }
         };
         
         const handleError = (error: any) => {
           console.log('❌ WebSocket error received:', error);
-          console.log('❌ Error type:', typeof error);
-          console.log('❌ Error message:', error?.message);
-          console.log('❌ Error string:', String(error));
-          
+          (window as any).socket.off('statusUpdated', handleStatusUpdated);
           (window as any).socket.off('error', handleError);
+          (window as any).socket.off('timeout', handleTimeout);
           
-          // Check for "User is not online" in various error formats
           const errorString = String(error);
-          const errorMessage = error?.message || errorString;
-          
-          if (errorMessage.includes('User is not online') || errorString.includes('User is not online')) {
-            console.log('🔄 User not online, falling back to local update');
+          if (errorString.includes('User is not online') || errorString.includes('not online')) {
+            console.log('🔄 User not online, falling back to API update');
             resolve({ success: false, error: 'User not online', fallback: true });
           } else {
-            resolve({ success: false, error: errorMessage || 'WebSocket error' });
+            resolve({ success: false, error: errorString || 'WebSocket error', fallback: true });
           }
+        };
+        
+        const handleTimeout = () => {
+          console.log('⏰ WebSocket timeout, falling back to API update');
+          (window as any).socket.off('statusUpdated', handleStatusUpdated);
+          (window as any).socket.off('error', handleError);
+          (window as any).socket.off('timeout', handleTimeout);
+          resolve({ success: false, error: 'WebSocket timeout', fallback: true });
         };
         
         (window as any).socket.on('statusUpdated', handleStatusUpdated);
         (window as any).socket.on('error', handleError);
         
-        // Timeout after 5 seconds
-        setTimeout(() => {
-          (window as any).socket.off('statusUpdated', handleStatusUpdated);
-          (window as any).socket.off('error', handleError);
-          console.log('⏰ WebSocket timeout, falling back to local update');
-          resolve({ success: false, error: 'WebSocket timeout', fallback: true });
-        }, 5000);
+        // Timeout after 3 seconds
+        setTimeout(handleTimeout, 3000);
       });
-    } else {
-      // Fallback to local update since API endpoint doesn't exist
-      try {
-        console.log('🌐 Using local update for order status');
-        
-        // Get current order details
-        const currentResponse = await APIS.get(`/order/${orderId}`);
-        if (currentResponse.status === 200 && currentResponse.data.data.length > 0) {
-          const orderDetail = currentResponse.data.data[0];
-          
-          // Update the order status locally
-          const updatedOrderDetail = {
-            ...orderDetail,
-            Order: {
-              ...orderDetail.Order,
-              status: status
-            }
-          };
-          
-          // Update the store with the new data
-          dispatch(setOrderDetails([updatedOrderDetail]));
-          console.log('✅ Order status updated locally');
-          return { success: true, local: true };
-        } else {
-          console.error('❌ Failed to get current order details');
-          return { success: false, error: 'Failed to get order details' };
-        }
-      } catch (fallbackError) {
-        console.error("❌ Local update failed:", fallbackError);
-        return { success: false, error: "Local update failed" };
+    }
+    
+    // Fallback to API update
+    console.log('🌐 WebSocket not available, using API update');
+    try {
+      const response = await APIS.patch(`/order/admin/change-status/${orderId}`, { status });
+      
+      if (response.status === 200) {
+        console.log('✅ Order status updated via API');
+        // Refresh order details
+        dispatch(fetchAdminOrderDetails(orderId));
+        return { success: true, method: 'api' };
+      } else {
+        console.error('❌ API update failed:', response.status);
+        return { success: false, error: 'API update failed' };
       }
+    } catch (apiError) {
+      console.error("❌ API update error:", apiError);
+      
+              // Final fallback to local update
+        try {
+          console.log('🔄 API failed, trying local update');
+          const currentResponse = await APIS.get(`/order/${orderId}`);
+          if (currentResponse.status === 200 && currentResponse.data.data.length > 0) {
+            const orderDetail = currentResponse.data.data[0];
+            const updatedOrderDetail = {
+              ...orderDetail,
+              Order: {
+                ...orderDetail.Order,
+                status: status
+              }
+            };
+            dispatch(setOrderDetails([updatedOrderDetail]));
+            console.log('✅ Order status updated locally');
+            return { success: true, method: 'local' };
+          }
+        } catch (localError) {
+          console.error("❌ Local update also failed:", localError);
+        }
+      
+      return { success: false, error: "All update methods failed" };
     }
   };
 }
 
 export function updatePaymentStatus(orderId: string, paymentId: string, status: string, userId: string) {
   return async function updatePaymentStatusThunk(dispatch: AppDispatch) {
-    // Use WebSocket if available, otherwise fallback to local update
+    console.log('🔄 Starting payment status update:', { orderId, paymentId, status, userId });
+    
+    // Try WebSocket first if available
     if (typeof window !== 'undefined' && (window as any).socket && (window as any).socket.connected) {
+      console.log('🌐 WebSocket connected, attempting real-time update');
+      
       return new Promise((resolve) => {
-        (window as any).socket.emit('updatePaymentStatus', { status, paymentId, userId });
+        // Get the authenticated user ID from WebSocket if available
+        const socket = (window as any).socket;
+        const authenticatedUserId = socket.authenticatedUserId || userId;
+        
+        const updateData = { status, paymentId, userId: authenticatedUserId };
+        console.log('📤 Sending payment status update via WebSocket:', updateData);
+        socket.emit('updatePaymentStatus', updateData);
+        
+        // Also broadcast to all clients for real-time updates
+        socket.emit('broadcastPaymentUpdate', { orderId, paymentId, status });
         
         // Listen for the response
         const handlePaymentStatusUpdated = (data: any) => {
-          console.log('🔄 Payment status update response received:', data);
+          console.log('✅ Payment status update response received:', data);
           if (data.paymentId === paymentId) {
             (window as any).socket.off('paymentStatusUpdated', handlePaymentStatusUpdated);
+            (window as any).socket.off('error', handleError);
+            (window as any).socket.off('timeout', handleTimeout);
+            
+            // Refresh order details
             dispatch(fetchAdminOrderDetails(orderId));
-            resolve({ success: true });
+            resolve({ success: true, method: 'websocket' });
           }
         };
         
         const handleError = (error: any) => {
           console.log('❌ WebSocket error received:', error);
-          console.log('❌ Error type:', typeof error);
-          console.log('❌ Error message:', error?.message);
-          console.log('❌ Error string:', String(error));
-          
+          (window as any).socket.off('paymentStatusUpdated', handlePaymentStatusUpdated);
           (window as any).socket.off('error', handleError);
+          (window as any).socket.off('timeout', handleTimeout);
           
-          // Check for "User is not online" in various error formats
           const errorString = String(error);
-          const errorMessage = error?.message || errorString;
-          
-          if (errorMessage.includes('User is not online') || errorString.includes('User is not online')) {
-            console.log('🔄 User not online, falling back to local update');
+          if (errorString.includes('User is not online') || errorString.includes('not online')) {
+            console.log('🔄 User not online, falling back to API update');
             resolve({ success: false, error: 'User not online', fallback: true });
           } else {
-            resolve({ success: false, error: errorMessage || 'WebSocket error' });
+            resolve({ success: false, error: errorString || 'WebSocket error', fallback: true });
           }
+        };
+        
+        const handleTimeout = () => {
+          console.log('⏰ WebSocket timeout, falling back to API update');
+          (window as any).socket.off('paymentStatusUpdated', handlePaymentStatusUpdated);
+          (window as any).socket.off('error', handleError);
+          (window as any).socket.off('timeout', handleTimeout);
+          resolve({ success: false, error: 'WebSocket timeout', fallback: true });
         };
         
         (window as any).socket.on('paymentStatusUpdated', handlePaymentStatusUpdated);
         (window as any).socket.on('error', handleError);
         
-        // Timeout after 5 seconds
-        setTimeout(() => {
-          (window as any).socket.off('paymentStatusUpdated', handlePaymentStatusUpdated);
-          (window as any).socket.off('error', handleError);
-          console.log('⏰ WebSocket timeout, falling back to local update');
-          resolve({ success: false, error: 'WebSocket timeout', fallback: true });
-        }, 5000);
+        // Timeout after 3 seconds
+        setTimeout(handleTimeout, 3000);
       });
-    } else {
-      // Fallback to local update since API endpoint doesn't exist
+    }
+    
+    // Fallback to API update
+    console.log('🌐 WebSocket not available, using API update');
+    try {
+      const response = await APIS.patch(`/order/admin/change-payment-status/${paymentId}`, { status });
+      
+      if (response.status === 200) {
+        console.log('✅ Payment status updated via API');
+        // Refresh order details
+        dispatch(fetchAdminOrderDetails(orderId));
+        return { success: true, method: 'api' };
+      } else {
+        console.error('❌ API update failed:', response.status);
+        return { success: false, error: 'API update failed' };
+      }
+    } catch (apiError) {
+      console.error("❌ API update error:", apiError);
+      
+      // Final fallback to local update
       try {
-        console.log('🌐 Using local update for payment status');
-        
-        // Get current order details
+        console.log('🔄 API failed, trying local update');
         const currentResponse = await APIS.get(`/order/${orderId}`);
         if (currentResponse.status === 200 && currentResponse.data.data.length > 0) {
           const orderDetail = currentResponse.data.data[0];
-          
-          // Update the payment status locally
           const updatedOrderDetail = {
             ...orderDetail,
             Order: {
@@ -297,19 +349,15 @@ export function updatePaymentStatus(orderId: string, paymentId: string, status: 
               }
             }
           };
-          
-          // Update the store with the new data
           dispatch(setOrderDetails([updatedOrderDetail]));
           console.log('✅ Payment status updated locally');
-          return { success: true, local: true };
-        } else {
-          console.error('❌ Failed to get current order details');
-          return { success: false, error: 'Failed to get order details' };
+          return { success: true, method: 'local' };
         }
-      } catch (fallbackError) {
-        console.error("❌ Local update failed:", fallbackError);
-        return { success: false, error: "Local update failed" };
+      } catch (localError) {
+        console.error("❌ Local update also failed:", localError);
       }
+      
+      return { success: false, error: "All update methods failed" };
     }
   };
 }

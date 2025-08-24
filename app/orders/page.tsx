@@ -52,7 +52,7 @@ export default function Orders() {
     dispatch(fetchOrders());
   }, [dispatch]);
 
-  // Listen for order status updates from WebSocket
+  // Listen for order status updates from WebSocket and auto-refresh
   useEffect(() => {
     // Check if socket is already connected and authenticated
     if (!socket.connected) {
@@ -64,11 +64,13 @@ export default function Orders() {
 
     const handleOrderStatusUpdate = () => {
       // Refresh orders list when status is updated
+      console.log('🔄 Order status updated, refreshing orders list');
       dispatch(fetchOrders());
     };
 
     const handlePaymentStatusUpdate = () => {
       // Refresh orders list when payment status is updated
+      console.log('🔄 Payment status updated, refreshing orders list');
       dispatch(fetchOrders());
     };
 
@@ -76,10 +78,17 @@ export default function Orders() {
     socket.on("orderStatusUpdated", handleOrderStatusUpdate);
     socket.on("paymentStatusUpdated", handlePaymentStatusUpdate);
 
-    // Cleanup listeners
+    // Auto-refresh orders every 30 seconds as fallback
+    const autoRefreshInterval = setInterval(() => {
+      console.log('🔄 Auto-refreshing orders list (30s interval)');
+      dispatch(fetchOrders());
+    }, 30000);
+
+    // Cleanup listeners and interval
     return () => {
       socket.off("orderStatusUpdated", handleOrderStatusUpdate);
       socket.off("paymentStatusUpdated", handlePaymentStatusUpdate);
+      clearInterval(autoRefreshInterval);
     };
   }, [dispatch, socket.connected]);
 
@@ -181,6 +190,15 @@ export default function Orders() {
             <Badge variant="outline" className="text-sm">
               {items.length} Total Orders
             </Badge>
+            <button 
+              onClick={() => {
+                console.log('🔄 Manual refresh triggered');
+                dispatch(fetchOrders());
+              }}
+              className="px-3 py-1 text-sm bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
+            >
+              🔄 Refresh
+            </button>
           </div>
         </div>
         
