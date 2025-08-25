@@ -49,6 +49,7 @@ import { useAppSelector } from "@/store/hooks";
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { fetchOrders } from "@/store/orderSlice";
 import { useAppDispatch } from "@/store/hooks";
+import { Download, X } from "lucide-react";
 
 
 interface Order {
@@ -72,6 +73,8 @@ export default function Dashboard() {
   const dispatch = useAppDispatch();
   const { items: orders, status } = useAppSelector((store) => store.orders);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
 
   // Memoized stats calculation
   const stats = useMemo(() => {
@@ -130,6 +133,34 @@ export default function Dashboard() {
       };
     });
   }, [orders]);
+
+  // Search and filter functionality
+  const filteredOrders = useMemo(() => {
+    if (!searchTerm.trim()) return recentOrders;
+    
+    const searchLower = searchTerm.toLowerCase();
+    return recentOrders.filter(order => {
+      const fullName = `${order.firstName} ${order.lastName}`.toLowerCase();
+      const status = order.status.toLowerCase();
+      const amount = order.totalPrice.toString();
+      const phone = order.phoneNumber.toLowerCase();
+      
+      return (
+        fullName.includes(searchLower) ||
+        status.includes(searchLower) ||
+        amount.includes(searchLower) ||
+        phone.includes(searchLower)
+      );
+    });
+  }, [recentOrders, searchTerm]);
+
+  // Clear search function
+  const clearSearch = useCallback(() => {
+    setSearchTerm("");
+    setIsSearchFocused(false);
+  }, []);
+
+
 
   // Memoized monthly analytics data
   const monthlyAnalytics = useMemo(() => {
@@ -203,6 +234,47 @@ export default function Dashboard() {
       day: 'numeric',
     });
   }, []);
+
+  // Download dashboard data as CSV
+  const downloadDashboardData = useCallback(() => {
+    const csvData = [
+      // Headers
+      ['Metric', 'Value'],
+      ['Total Revenue', `NPR ${stats.totalRevenue.toFixed(2)}`],
+      ['Total Orders', stats.totalOrders.toString()],
+      ['Pending Orders', stats.pendingOrders.toString()],
+      ['Completed Orders', stats.completedOrders.toString()],
+      ['Average Order Value', stats.totalOrders > 0 ? `NPR ${(stats.totalRevenue / stats.totalOrders).toFixed(2)}` : 'NPR 0.00'],
+      ['', ''], // Empty row for spacing
+      ['Recent Orders Details', ''],
+      ['Customer Name', 'Status', 'Date', 'Amount', 'Phone Number'],
+      // Order details
+      ...(searchTerm ? filteredOrders : recentOrders).map(order => [
+        `${order.firstName || 'N/A'} ${order.lastName || 'N/A'}`,
+        order.status || 'N/A',
+        formatDate(order.createdAt || ''),
+        `NPR ${(order.totalPrice || 0).toFixed(2)}`,
+        order.phoneNumber || 'N/A'
+      ])
+    ];
+
+    // Convert to CSV string
+    const csvContent = csvData.map(row => 
+      row.map(cell => `"${cell}"`).join(',')
+    ).join('\n');
+
+    // Create and download file
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `dashboard-report-${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }, [stats, recentOrders, formatDate]);
 
   // Loading state
   if (status === 'loading' && isInitialLoad) {
@@ -303,81 +375,175 @@ export default function Dashboard() {
     <AdminLayout>
         <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
         <div className="flex items-center justify-between space-y-2">
-          <h2 className="text-3xl font-bold tracking-tight">Dashboard</h2>
+          <div className="flex items-center gap-3">
+            <div className="p-3 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 shadow-lg">
+              <BarChart3 className="h-8 w-8 text-white" />
+            </div>
+            <h2 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-indigo-600 to-purple-600 dark:from-indigo-400 dark:to-purple-400 bg-clip-text text-transparent">
+              Dashboard
+            </h2>
+          </div>
+          
+          {/* Search Bar */}
+          <div className="flex-1 max-w-md mx-8">
+            <div className="relative group">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Search className="h-5 w-5 text-gray-400 group-focus-within:text-blue-500 transition-colors duration-200" />
+              </div>
+              <Input
+                type="text"
+                placeholder="Search orders by name, status, amount..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                onFocus={() => setIsSearchFocused(true)}
+                onBlur={() => setTimeout(() => setIsSearchFocused(false), 200)}
+                className="pl-10 pr-10 h-11 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 focus:border-blue-500 dark:focus:border-blue-400 focus:ring-2 focus:ring-blue-500/20 dark:focus:ring-blue-400/20 transition-all duration-200 rounded-xl shadow-sm hover:shadow-md"
+              />
+              {searchTerm && (
+                <button
+                  onClick={clearSearch}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center hover:bg-gray-100 dark:hover:bg-gray-700 rounded-r-xl transition-colors duration-200"
+                >
+                  <X className="h-4 w-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" />
+                </button>
+              )}
+            </div>
+            {isSearchFocused && searchTerm && (
+              <div className="absolute mt-1 w-full max-w-md bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-10">
+                <div className="p-3 text-sm text-gray-500 dark:text-gray-400">
+                  Search results: {filteredOrders.length} order{filteredOrders.length !== 1 ? 's' : ''} found
+                </div>
+              </div>
+            )}
+          </div>
+          
           <div className="flex items-center space-x-2">
-            <Button>Download</Button>
+            <Button 
+              onClick={downloadDashboardData} 
+              className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 border-0"
+            >
+              <Download className="h-4 w-4" />
+              Download Report
+            </Button>
             </div>
         </div>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-          <Card>
+          <Card className="group hover:shadow-lg transition-all duration-300 bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-950/30 dark:to-emerald-900/20 border-emerald-200 dark:border-emerald-800/50 hover:scale-105">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium text-emerald-800 dark:text-emerald-200">Total Revenue</CardTitle>
+              <div className="p-2 rounded-lg bg-emerald-100 dark:bg-emerald-900/50 group-hover:bg-emerald-200 dark:group-hover:bg-emerald-800/70 transition-colors duration-300">
+                <DollarSign className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{formatPrice(stats.totalRevenue)}</div>
-              <p className="text-xs text-muted-foreground">
+              <div className="text-2xl font-bold text-emerald-700 dark:text-emerald-300">{formatPrice(stats.totalRevenue)}</div>
+              <p className="text-xs text-emerald-600 dark:text-emerald-400">
                 +20.1% from last month
               </p>
             </CardContent>
           </Card>
-          <Card>
+          
+          <Card className="group hover:shadow-lg transition-all duration-300 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950/30 dark:to-blue-900/20 border-blue-200 dark:border-blue-800/50 hover:scale-105">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Orders</CardTitle>
-              <ShoppingCart className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium text-blue-800 dark:text-blue-200">Total Orders</CardTitle>
+              <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-900/50 group-hover:bg-blue-200 dark:group-hover:bg-blue-800/70 transition-colors duration-300">
+                <ShoppingCart className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.totalOrders}</div>
-              <p className="text-xs text-muted-foreground">
+              <div className="text-2xl font-bold text-blue-700 dark:text-blue-300">{stats.totalOrders}</div>
+              <p className="text-xs text-blue-600 dark:text-blue-400">
                 +180.1% from last month
               </p>
             </CardContent>
           </Card>
-          <Card>
+          
+          <Card className="group hover:shadow-lg transition-all duration-300 bg-gradient-to-br from-amber-50 to-amber-100 dark:from-amber-950/30 dark:to-amber-900/20 border-amber-200 dark:border-amber-800/50 hover:scale-105">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Pending Orders</CardTitle>
-              <Clock className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium text-amber-800 dark:text-amber-200">Pending Orders</CardTitle>
+              <div className="p-2 rounded-lg bg-amber-100 dark:bg-amber-900/50 group-hover:bg-amber-200 dark:group-hover:bg-amber-800/70 transition-colors duration-300">
+                <Clock className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.pendingOrders}</div>
-              <p className="text-xs text-muted-foreground">
+              <div className="text-2xl font-bold text-amber-700 dark:text-amber-300">{stats.pendingOrders}</div>
+              <p className="text-xs text-amber-600 dark:text-amber-400">
                 +19% from last month
               </p>
             </CardContent>
           </Card>
-          <Card>
+          
+          <Card className="group hover:shadow-lg transition-all duration-300 bg-gradient-to-br from-green-50 to-green-100 dark:from-green-950/30 dark:to-green-900/20 border-green-200 dark:border-green-800/50 hover:scale-105">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Completed Orders</CardTitle>
-              <CheckCircle className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium text-green-800 dark:text-green-200">Completed Orders</CardTitle>
+              <div className="p-2 rounded-lg bg-green-100 dark:bg-green-900/50 group-hover:bg-green-200 dark:group-hover:bg-green-800/70 transition-colors duration-300">
+                <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.completedOrders}</div>
-              <p className="text-xs text-muted-foreground">
+              <div className="text-2xl font-bold text-green-700 dark:text-green-300">{stats.completedOrders}</div>
+              <p className="text-xs text-green-600 dark:text-green-400">
                 +201 since last hour
               </p>
             </CardContent>
           </Card>
-          <Card>
+          
+          <Card className="group hover:shadow-lg transition-all duration-300 bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-950/30 dark:to-purple-900/20 border-purple-200 dark:border-purple-800/50 hover:scale-105">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Avg Order Value</CardTitle>
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium text-purple-800 dark:text-purple-200">Avg Order Value</CardTitle>
+              <div className="p-2 rounded-lg bg-purple-100 dark:bg-purple-900/50 group-hover:bg-purple-200 dark:group-hover:bg-purple-800/70 transition-colors duration-300">
+                <TrendingUp className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">
+              <div className="text-2xl font-bold text-purple-700 dark:text-purple-300">
                 {stats.totalOrders > 0 ? formatPrice(stats.totalRevenue / stats.totalOrders) : formatPrice(0)}
               </div>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-purple-600 dark:text-purple-400">
                 Per order average
               </p>
             </CardContent>
           </Card>
         </div>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-          <Card className="col-span-4">
-            <CardHeader>
-              <CardTitle>Recent Orders</CardTitle>
+          <Card className="col-span-4 group hover:shadow-lg transition-all duration-300 border-l-4 border-l-blue-500 dark:border-l-blue-400">
+            <CardHeader className="bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-950/20 dark:to-blue-900/10">
+              <CardTitle className="text-blue-800 dark:text-blue-200 flex items-center gap-2">
+                <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-900/50">
+                  <ShoppingCart className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                </div>
+                Recent Orders
+              </CardTitle>
             </CardHeader>
             <CardContent>
+              {/* Search Summary */}
+              {searchTerm && (
+                <div className="mb-4 p-3 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-950/20 dark:to-purple-950/20 rounded-lg border border-blue-200 dark:border-blue-800/50">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Search className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                      <span className="text-sm font-medium text-blue-800 dark:text-blue-200">
+                        Search Results for: <span className="font-bold">"{searchTerm}"</span>
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="text-xs text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/50 px-2 py-1 rounded-full">
+                        {filteredOrders.length} order{filteredOrders.length !== 1 ? 's' : ''} found
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={clearSearch}
+                        className="text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/50 h-7 px-2"
+                      >
+                        <X className="h-3 w-3 mr-1" />
+                        Clear
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -388,26 +554,94 @@ export default function Dashboard() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                      {recentOrders.map((order, index) => (
-                    <TableRow key={`order-${order.id}-${index}`}>
-                      <TableCell className="font-medium">
-                        {order.firstName} {order.lastName}
-                    </TableCell>
-                      <TableCell>{getStatusBadge(order.status)}</TableCell>
-                      <TableCell>{formatDate(order.createdAt || '')}</TableCell>
-                          <TableCell className="text-right">
-                            {formatPrice(order.totalPrice)}
-                    </TableCell>
-                  </TableRow>
-                      ))}
+                  {filteredOrders.length > 0 ? (
+                    filteredOrders.map((order, index) => (
+                      <TableRow 
+                        key={`order-${order.id}-${index}`}
+                        className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors duration-200"
+                      >
+                        <TableCell className="font-medium">
+                          <div className="flex items-center gap-2">
+                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-100 to-purple-100 dark:from-blue-900/30 dark:to-purple-900/30 flex items-center justify-center">
+                              <span className="text-sm font-semibold text-blue-600 dark:text-blue-400">
+                                {order.firstName.charAt(0)}{order.lastName.charAt(0)}
+                              </span>
+                            </div>
+                            <span className="text-gray-900 dark:text-gray-100">
+                              {searchTerm ? (
+                                <span dangerouslySetInnerHTML={{
+                                  __html: `${order.firstName} ${order.lastName}`.replace(
+                                    new RegExp(`(${searchTerm})`, 'gi'),
+                                    '<mark class="bg-yellow-200 dark:bg-yellow-800/50 text-yellow-900 dark:text-yellow-200 px-1 rounded">$1</mark>'
+                                  )
+                                }} />
+                              ) : (
+                                `${order.firstName} ${order.lastName}`
+                              )}
+                            </span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            {getStatusBadge(order.status)}
+                            {searchTerm && order.status.toLowerCase().includes(searchTerm.toLowerCase()) && (
+                              <div className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></div>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-gray-600 dark:text-gray-400">
+                          {formatDate(order.createdAt || '')}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <span className="font-semibold text-green-600 dark:text-green-400">
+                            {searchTerm && order.totalPrice.toString().includes(searchTerm) ? (
+                              <span dangerouslySetInnerHTML={{
+                                __html: formatPrice(order.totalPrice).replace(
+                                  new RegExp(`(${searchTerm})`, 'gi'),
+                                  '<mark class="bg-yellow-200 dark:bg-yellow-800/50 text-yellow-900 dark:text-yellow-200 px-1 rounded">$1</mark>'
+                                )
+                              }} />
+                            ) : (
+                              formatPrice(order.totalPrice)
+                            )}
+                          </span>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={4} className="text-center py-8">
+                        <div className="flex flex-col items-center gap-2 text-gray-500 dark:text-gray-400">
+                          <Search className="h-8 w-8" />
+                          <p className="font-medium">No orders found</p>
+                          <p className="text-sm">Try adjusting your search terms</p>
+                          {searchTerm && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={clearSearch}
+                              className="mt-2"
+                            >
+                              Clear Search
+                            </Button>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )}
                 </TableBody>
               </Table>
             </CardContent>
           </Card>
-          <Card className="col-span-3">
-            <CardHeader>
-              <CardTitle>Monthly Analytics</CardTitle>
-              <CardDescription>
+          <Card className="col-span-3 group hover:shadow-lg transition-all duration-300 border-l-4 border-l-purple-500 dark:border-l-purple-400">
+            <CardHeader className="bg-gradient-to-r from-purple-50 to-purple-100 dark:from-purple-950/20 dark:to-purple-900/10">
+              <CardTitle className="text-purple-800 dark:text-purple-200 flex items-center gap-2">
+                <div className="p-2 rounded-lg bg-purple-100 dark:bg-purple-900/50">
+                  <BarChart3 className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+                </div>
+                Monthly Analytics
+              </CardTitle>
+              <CardDescription className="text-purple-600 dark:text-purple-400">
                 Revenue trends over the last 6 months
               </CardDescription>
             </CardHeader>
@@ -422,18 +656,18 @@ export default function Dashboard() {
                           {data.orders} orders
                         </span>
                       </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2 dark:bg-gray-700">
+                      <div className="w-full bg-gray-200 rounded-full h-3 dark:bg-gray-700 overflow-hidden">
                         <div 
-                          className="h-2 rounded-full transition-all duration-300"
+                          className="h-3 rounded-full transition-all duration-500 ease-out shadow-lg"
                           style={{ 
                             width: `${Math.min((data.revenue / Math.max(...monthlyAnalytics.map(d => d.revenue))) * 100, 100)}%`,
-                            backgroundColor: data.color
+                            background: `linear-gradient(90deg, ${data.color} 0%, ${data.color}dd 50%, ${data.color}aa 100%)`
                           }}
                         />
                       </div>
                       <div className="flex items-center justify-between text-xs">
                         <span className="text-muted-foreground">Revenue</span>
-                        <span className="font-medium text-green-600">
+                        <span className="font-medium text-green-600 dark:text-green-400">
                           {formatPrice(data.revenue)}
                         </span>
                       </div>

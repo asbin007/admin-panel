@@ -76,7 +76,7 @@ export function ProductTable({ products = [] }: { products?: IProduct[] }) {
     if (price === undefined) return "N/A";
     return new Intl.NumberFormat("en-US", {
       style: "currency",
-      currency: "USD",
+      currency: "NRS",
     }).format(price);
   };
 
