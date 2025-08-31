@@ -317,7 +317,7 @@ const AddProductForm: React.FC<AddProductFormProps> = ({ closeModal }) => {
                     value="pricing"
                     className="flex items-center gap-2 data-[state=active]:bg-background"
                   >
-                    <span className="text-xs font-bold text-primary bg-primary/10 px-2 py-1 rounded">NPR</span>
+                    <span className="text-xs font-bold text-primary bg-primary/10 px-2 py-1 rounded">Rs</span>
                     Pricing
                   </TabsTrigger>
                   <TabsTrigger
@@ -585,7 +585,7 @@ const AddProductForm: React.FC<AddProductFormProps> = ({ closeModal }) => {
                               Original Price *
                             </Label>
                             <div className="relative">
-                              <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-sm font-medium text-muted-foreground">NPR</span>
+                              <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-sm font-medium text-muted-foreground">Rs</span>
               <Input
                                 id="originalPrice"
                                 type="number"
@@ -629,7 +629,7 @@ const AddProductForm: React.FC<AddProductFormProps> = ({ closeModal }) => {
                             Sale Price *
                           </Label>
                                                       <div className="relative">
-                              <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-sm font-medium text-muted-foreground">NPR</span>
+                              <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-sm font-medium text-muted-foreground">Rs</span>
                               <Input
                                 id="price"
                                 type="number"
@@ -670,14 +670,14 @@ const AddProductForm: React.FC<AddProductFormProps> = ({ closeModal }) => {
                       <Card className="bg-muted/50 border-border">
                         <CardHeader>
                           <CardTitle className="flex items-center gap-2">
-                            <span className="text-xs font-bold text-primary bg-primary/10 px-2 py-1 rounded">NPR</span>
+                            <span className="text-xs font-bold text-primary bg-primary/10 px-2 py-1 rounded">Rs</span>
                             Pricing Summary
                           </CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-4">
                           <div className="flex justify-between items-center">
                             <span className="text-muted-foreground">Original Price:</span>
-                            <span className="font-semibold text-lg">NPR {formData.originalPrice.toFixed(2)}</span>
+                            <span className="font-semibold text-lg">Rs {formData.originalPrice.toFixed(2)}</span>
                           </div>
 
                           {formData.discount > 0 && (
@@ -689,7 +689,7 @@ const AddProductForm: React.FC<AddProductFormProps> = ({ closeModal }) => {
 
                           <div className="flex justify-between items-center text-xl font-bold border-t pt-4">
                             <span>Sale Price:</span>
-                            <span className="text-primary">NPR {formData.price.toFixed(2)}</span>
+                            <span className="text-primary">Rs {formData.price.toFixed(2)}</span>
                           </div>
 
                           {formData.originalPrice > 0 &&
@@ -697,7 +697,7 @@ const AddProductForm: React.FC<AddProductFormProps> = ({ closeModal }) => {
                             formData.originalPrice !== formData.price && (
                               <div className="text-center">
                                 <Badge variant="secondary" className="bg-primary/10 text-primary">
-                                  You save NPR {(formData.originalPrice - formData.price).toFixed(2)}
+                                  You save Rs {(formData.originalPrice - formData.price).toFixed(2)}
                                 </Badge>
                               </div>
                             )}

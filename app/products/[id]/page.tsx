@@ -66,8 +66,8 @@ export default function ProductDetailsPage() {
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat("en-US", {
       style: "currency",
-      currency: "NPR",
-    }).format(price);
+      currency: "INR",
+    }).format(price).replace('₹', 'Rs ');
   };
 
   const handleDelete = async () => {

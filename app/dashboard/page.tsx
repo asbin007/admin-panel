@@ -223,8 +223,8 @@ export default function Dashboard() {
   const formatPrice = useCallback((price: number) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
-      currency: 'NPR',
-    }).format(price);
+      currency: 'INR',
+    }).format(price).replace('₹', 'Rs ');
   }, []);
 
   const formatDate = useCallback((dateString: string) => {
@@ -240,11 +240,11 @@ export default function Dashboard() {
     const csvData = [
       // Headers
       ['Metric', 'Value'],
-      ['Total Revenue', `NPR ${stats.totalRevenue.toFixed(2)}`],
+      ['Total Revenue', `Rs ${stats.totalRevenue.toFixed(2)}`],
       ['Total Orders', stats.totalOrders.toString()],
       ['Pending Orders', stats.pendingOrders.toString()],
       ['Completed Orders', stats.completedOrders.toString()],
-      ['Average Order Value', stats.totalOrders > 0 ? `NPR ${(stats.totalRevenue / stats.totalOrders).toFixed(2)}` : 'NPR 0.00'],
+      ['Average Order Value', stats.totalOrders > 0 ? `Rs ${(stats.totalRevenue / stats.totalOrders).toFixed(2)}` : 'Rs 0.00'],
       ['', ''], // Empty row for spacing
       ['Recent Orders Details', ''],
       ['Customer Name', 'Status', 'Date', 'Amount', 'Phone Number'],
@@ -253,7 +253,7 @@ export default function Dashboard() {
         `${order.firstName || 'N/A'} ${order.lastName || 'N/A'}`,
         order.status || 'N/A',
         formatDate(order.createdAt || ''),
-        `NPR ${(order.totalPrice || 0).toFixed(2)}`,
+        `Rs ${(order.totalPrice || 0).toFixed(2)}`,
         order.phoneNumber || 'N/A'
       ])
     ];
@@ -305,7 +305,7 @@ export default function Dashboard() {
                 <DollarSign className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">₹0.00</div>
+                <div className="text-2xl font-bold">Rs 0.00</div>
                 <p className="text-xs text-muted-foreground">No sales yet</p>
               </CardContent>
             </Card>

@@ -271,10 +271,10 @@ function AdminOrderDetail() {
                       </p>
                     </div>
                     <div className="text-right">
-                      <p className="font-semibold">₹{item.Shoe.price}</p>
+                      <p className="font-semibold">Rs {item.Shoe.price}</p>
                       <p className="text-sm text-muted-foreground">Qty: {item.quantity}</p>
                       <p className="font-semibold text-primary">
-                        ₹{(item.quantity * item.Shoe.price).toFixed(2)}
+                        Rs {(item.quantity * item.Shoe.price).toFixed(2)}
                       </p>
                     </div>
                   </div>
@@ -291,15 +291,15 @@ function AdminOrderDetail() {
                 <div className="space-y-4">
                   <div className="flex justify-between items-center">
                     <span>Subtotal</span>
-                    <span>₹{order.Order.totalPrice.toFixed(2)}</span>
+                    <span>Rs {order.Order.totalPrice.toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span>Shipping</span>
-                    <span>₹100.00</span>
+                    <span>Rs 100.00</span>
                   </div>
                   <div className="border-t pt-4 flex justify-between items-center font-semibold">
                     <span>Total</span>
-                    <span>₹{(order.Order.totalPrice + 100).toFixed(2)}</span>
+                    <span>Rs {(order.Order.totalPrice + 100).toFixed(2)}</span>
                   </div>
                 </div>
               </CardContent>

@@ -76,8 +76,8 @@ export function ProductTable({ products = [] }: { products?: IProduct[] }) {
     if (price === undefined) return "N/A";
     return new Intl.NumberFormat("en-US", {
       style: "currency",
-      currency: "NRS",
-    }).format(price);
+      currency: "INR",
+    }).format(price).replace('₹', 'Rs ');
   };
 
   const formatDate = (dateString?: string | Date) => {
