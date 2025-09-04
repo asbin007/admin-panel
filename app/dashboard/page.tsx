@@ -1,18 +1,12 @@
 "use client";
 
-import Link from "next/link";
 import {
-  ArrowUpRight,
   CircleUser,
   DollarSign,
-  Menu,
-  Package2,
   Search,
-  Users,
   ShoppingCart,
   CheckCircle,
   Clock,
-  Star,
   Loader2,
   TrendingUp,
   BarChart3,
@@ -26,16 +20,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import {
   Table,
   TableBody,
@@ -52,22 +37,7 @@ import { useAppDispatch } from "@/store/hooks";
 import { Download, X } from "lucide-react";
 
 
-interface Order {
-  id: string;
-  totalPrice: number;
-  status: string;
-  firstName?: string;
-  lastName?: string;
-  phoneNumber?: string;
-  createdAt?: string;
-  Order?: {
-    firstName: string;
-    lastName: string;
-    phoneNumber: string;
-    totalPrice: number;
-    status: string;
-  };
-}
+// Removed unused Order interface
 
 export default function Dashboard() {
   const dispatch = useAppDispatch();
@@ -111,9 +81,6 @@ export default function Dashboard() {
     return orders.slice(0, 5).map(order => {
       // Try to get customer info from order details if available
       const orderDetail = order.OrderDetail;
-      const customerName = orderDetail?.Order?.firstName 
-        ? `${orderDetail.Order.firstName} ${orderDetail.Order.lastName || ''}`
-        : `Customer #${order.id.slice(-4)}`;
       
       return {
         id: order.id,
@@ -158,7 +125,7 @@ export default function Dashboard() {
   const clearSearch = useCallback(() => {
     setSearchTerm("");
     setIsSearchFocused(false);
-  }, []);
+  }, [filteredOrders, searchTerm]);
 
 
 
@@ -523,7 +490,7 @@ export default function Dashboard() {
                     <div className="flex items-center gap-2">
                       <Search className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                       <span className="text-sm font-medium text-blue-800 dark:text-blue-200">
-                        Search Results for: <span className="font-bold">"{searchTerm}"</span>
+                        Search Results for: <span className="font-bold">&quot;{searchTerm}&quot;</span>
                       </span>
                     </div>
                     <div className="flex items-center gap-3">

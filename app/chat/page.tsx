@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { Send, MessageCircle, User, Search, Image, MapPin, Paperclip, X, Clock, Check, CheckCheck } from "lucide-react";
+import { Send, MessageCircle, Search, Image, MapPin, X, Check, CheckCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+// Removed unused Card imports
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -62,7 +62,7 @@ export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
-  const [isTyping, setIsTyping] = useState(false);
+  // Removed unused isTyping state
   const [typingUsers, setTypingUsers] = useState<string[]>([]);
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string>("");
@@ -174,7 +174,7 @@ export default function ChatPage() {
     });
 
     // Listen for new message notifications
-    socket.on("newMessageNotification", ({ chatId, message, sender }: { chatId: string; message: Message; sender: any }) => {
+    socket.on("newMessageNotification", ({ chatId, message, sender }: { chatId: string; message: Message; sender: unknown }) => {
       console.log("New message notification:", { chatId, sender });
       
       // Show notification for new message
@@ -196,7 +196,7 @@ export default function ChatPage() {
       socket.off("stopTyping");
       socket.off("newMessageNotification");
     };
-  }, [selectedChat]);
+  }, [selectedChat, addNotification, chats, fetchAdminChats, updateChatList, user]);
 
   const fetchAdminChats = async () => {
     try {
@@ -355,9 +355,7 @@ export default function ChatPage() {
     if (!newMessage.trim() || !selectedChat) return;
 
     try {
-      const token = localStorage.getItem("tokenauth") || 
-                   document.cookie.split('; ').find(row => row.startsWith('tokenauth='))?.split('=')[1] ||
-                   "";
+      // Removed unused token variable
 
       const messageData = {
         chatId: selectedChat.id,
@@ -555,7 +553,7 @@ export default function ChatPage() {
       formData.append('type', 'image');
 
       console.log("FormData contents:");
-      for (let [key, value] of formData.entries()) {
+      for (const [key, value] of formData.entries()) {
         console.log(key, value);
       }
 

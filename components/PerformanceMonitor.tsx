@@ -9,7 +9,7 @@ interface PerformanceMonitorProps {
 
 export default function PerformanceMonitor({ componentName, children }: PerformanceMonitorProps) {
   const [loadTime, setLoadTime] = useState<number | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  // Removed unused isLoading state
 
   useEffect(() => {
     const startTime = performance.now();

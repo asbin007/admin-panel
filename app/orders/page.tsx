@@ -25,7 +25,7 @@ import { socket } from "@/app/app";
 import Link from "next/link";
 
 // Enums
-export enum OrderStatus {
+enum OrderStatus {
   Preparation = "preparation",
   Ontheway = "ontheway",
   Delivered = "delivered",
@@ -33,13 +33,13 @@ export enum OrderStatus {
   Cancelled = "cancelled",
 }
 
-export enum PaymentMethod {
+enum PaymentMethod {
   Khalti = "khalti",
   Esewa = "esewa",
   COD = "cod",
 }
 
-export enum PaymentStatus {
+enum PaymentStatus {
   Paid = "paid",
   Unpaid = "unpaid",
 }
@@ -90,7 +90,7 @@ export default function Orders() {
       socket.off("paymentStatusUpdated", handlePaymentStatusUpdate);
       clearInterval(autoRefreshInterval);
     };
-  }, [dispatch, socket.connected]);
+  }, [dispatch]);
 
   const statusBadgeMap: Record<OrderStatus, React.ReactElement> = {
     [OrderStatus.Preparation]: <Badge className="bg-blue-500">Preparation</Badge>,

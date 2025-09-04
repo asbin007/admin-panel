@@ -18,8 +18,7 @@ import { useRouter } from "next/navigation";
 import { loginUser } from "@/store/authSlice";
 import store from "@/store/store";
 
-export const description =
-  "A login form with email and password. There's an option to login with Google and a link to sign up if you don't have an account.";
+// Removed exported description to fix build error
 
 export default function LoginForm() {
   const router = useRouter();

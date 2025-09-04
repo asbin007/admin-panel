@@ -12,8 +12,7 @@ import {
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
-import { fetchAdminOrderDetails, updateOrderStatus, updatePaymentStatus, OrderStatus, PaymentStatus, setOrderDetails } from "@/store/orderSlice";
-import { APIS } from "@/globals/http";
+import { fetchAdminOrderDetails, updateOrderStatus, updatePaymentStatus, OrderStatus, PaymentStatus } from "@/store/orderSlice";
 import { getWebSocketStatus } from "@/utils/websocketFallback";
 
 import { Badge } from "@/components/ui/badge";

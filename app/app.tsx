@@ -7,7 +7,7 @@ import io from 'socket.io-client';
 import { useEffect, useState } from 'react';
 
 // Create socket instance with better configuration
-export const socket = io("http://localhost:5000", { // Backend port
+export const socket = io("https://nike-backend-1-g9i6.onrender.com", { // Backend port
   autoConnect: false,
   transports: ['websocket', 'polling'], // Try WebSocket first, then polling
   timeout: 10000, // 10 second timeout
@@ -21,7 +21,7 @@ export const socket = io("http://localhost:5000", { // Backend port
 
 // Make socket available globally
 if (typeof window !== 'undefined') {
-  (window as any).socket = socket;
+  (window as unknown as { socket: typeof socket }).socket = socket;
 }
 
 export function AppProviders({ children }: { children: React.ReactNode }) {
@@ -51,7 +51,7 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
           console.log('🔐 Connecting with token:', token.substring(0, 20) + '...');
           
           // Set auth token and connect
-          socket.auth = { token };
+          (socket as unknown as { auth: { token: string } }).auth = { token };
           socket.connect();
           
           // Add authentication event listener
@@ -59,7 +59,7 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
             console.log('✅ Admin authenticated via WebSocket:', data);
             setConnectionStatus('connected');
             // Store the authenticated user ID for use in order updates
-            socket.authenticatedUserId = data.userId;
+            (socket as unknown as { authenticatedUserId: string }).authenticatedUserId = data.userId;
             console.log('💾 Stored authenticated user ID:', data.userId);
           });
           
@@ -212,13 +212,6 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
   // Show connection status in development
   useEffect(() => {
     if (process.env.NODE_ENV === 'development' && isWebSocketEnabled) {
-      const statusColors = {
-        disconnected: 'text-gray-500',
-        connecting: 'text-yellow-500',
-        connected: 'text-green-500',
-        error: 'text-red-500'
-      };
-      
       const statusText = {
         disconnected: '🔌 Disconnected',
         connecting: '🔄 Connecting...',

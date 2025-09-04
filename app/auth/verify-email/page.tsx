@@ -36,7 +36,7 @@ export default function EmailVerificationPage() {
     if (token && emailParam) {
       handleEmailLinkVerification(token, emailParam);
     }
-  }, [searchParams]);
+  }, [searchParams, handleEmailLinkVerification]);
 
   const handleEmailLinkVerification = async (token: string, email: string) => {
     setIsLoading(true);
@@ -52,9 +52,12 @@ export default function EmailVerificationPage() {
           router.push("/user/login");
         }, 3000);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Email verification error:", error);
-      setError(error.response?.data?.message || "Email verification failed. Please try again.");
+      const errorMessage = error && typeof error === 'object' && 'response' in error 
+        ? (error as { response?: { data?: { message?: string } } }).response?.data?.message 
+        : "Email verification failed. Please try again.";
+      setError(errorMessage || "Email verification failed. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -77,11 +80,11 @@ export default function EmailVerificationPage() {
       try {
         // First try the auth resend endpoint
         response = await API.post("/auth/resend-otp", { email });
-      } catch (firstError) {
+      } catch {
         try {
           // If that fails, try the super admin resend endpoint
           response = await API.post("/super-admin/resend-verification", { email });
-        } catch (secondError) {
+        } catch {
           // If both fail, try the general verification endpoint
           response = await API.post("/auth/verification/resend", { email });
         }
@@ -92,15 +95,19 @@ export default function EmailVerificationPage() {
         setShowOtpForm(true);
         setTimeout(() => setSuccess(""), 5000);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Resend OTP error:", error);
       
       // Provide helpful error message
-      if (error.response?.status === 404) {
+      const errorResponse = error && typeof error === 'object' && 'response' in error 
+        ? (error as { response?: { status?: number } }).response 
+        : null;
+        
+      if (errorResponse?.status === 404) {
         setError("Email not found. Please check your email address.");
-      } else if (error.response?.status === 400) {
+      } else if (errorResponse?.status === 400) {
         setError("Invalid email address. Please check the email format.");
-      } else if (error.response?.status === 429) {
+      } else if (errorResponse?.status === 429) {
         setError("Too many requests. Please wait a few minutes before trying again.");
       } else {
         setError("Failed to send verification code. Please try again later.");
@@ -132,9 +139,12 @@ export default function EmailVerificationPage() {
           router.push("/user/login");
         }, 3000);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("OTP verification error:", error);
-      setError(error.response?.data?.message || "Invalid OTP. Please try again.");
+      const errorMessage = error && typeof error === 'object' && 'response' in error 
+        ? (error as { response?: { data?: { message?: string } } }).response?.data?.message 
+        : "Invalid OTP. Please try again.";
+      setError(errorMessage || "Invalid OTP. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -324,7 +334,7 @@ export default function EmailVerificationPage() {
                 <ul className="text-sm text-blue-700 dark:text-blue-300 space-y-1">
                   <li>• Check your email for the verification code</li>
                   <li>• Enter the 6-digit OTP in the field above</li>
-                  <li>• Click "Verify Email" to complete verification</li>
+                  <li>• Click &quot;Verify Email&quot; to complete verification</li>
                   <li>• You can then login to your admin account</li>
                 </ul>
               </div>

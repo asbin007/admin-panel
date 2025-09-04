@@ -102,7 +102,7 @@ export default function SettingsPage() {
         newPassword: '',
         confirmPassword: ''
       }));
-    } catch (error) {
+    } catch {
       toast.error("Failed to update profile");
     } finally {
       setIsLoading(false);

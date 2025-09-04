@@ -4,9 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import { Send, MessageCircle, X, Minimize2, Maximize2, Image, MapPin, Check, CheckCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+// Removed unused Card, Badge, Avatar imports
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { socket } from "@/app/app";
 import { useAppSelector } from "@/store/hooks";
@@ -64,7 +62,7 @@ export default function CustomerChat({ isOpen, onToggle, onClose }: CustomerChat
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [isMinimized, setIsMinimized] = useState(false);
-  const [isTyping, setIsTyping] = useState(false);
+  // Removed unused isTyping state
   const [typingUsers, setTypingUsers] = useState<string[]>([]);
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string>("");
@@ -115,7 +113,7 @@ export default function CustomerChat({ isOpen, onToggle, onClose }: CustomerChat
       socket.off("typing");
       socket.off("stopTyping");
     };
-  }, [socket.connected, user, chat]);
+  }, [initializeCustomerChat]);
 
   const initializeCustomerChat = async () => {
     try {
@@ -428,7 +426,7 @@ export default function CustomerChat({ isOpen, onToggle, onClose }: CustomerChat
               </div>
               <div>
                 <h3 className="font-semibold text-lg">Customer Support</h3>
-                <p className="text-blue-100 text-sm">We're here to help!</p>
+                <p className="text-blue-100 text-sm">We&apos;re here to help!</p>
               </div>
             </div>
             <div className="flex items-center gap-1">

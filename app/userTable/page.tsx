@@ -36,7 +36,7 @@ export default function UserTable() {
 
   useEffect(() => {
     dispatch(fetchUsers());
-  }, []);
+  }, [dispatch]);
 
   const deleteUser = (id: string) => {
     dispatch(deleteUserById(id));
