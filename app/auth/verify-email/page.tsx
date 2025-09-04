@@ -36,7 +36,7 @@ export default function EmailVerificationPage() {
     if (token && emailParam) {
       handleEmailLinkVerification(token, emailParam);
     }
-  }, [searchParams, handleEmailLinkVerification]);
+  }, [searchParams]);
 
   const handleEmailLinkVerification = async (token: string, email: string) => {
     setIsLoading(true);

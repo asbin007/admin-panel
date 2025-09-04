@@ -55,7 +55,7 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
           socket.connect();
           
           // Add authentication event listener
-          socket.on('authenticated', (data) => {
+          socket.on('authenticated', (data: { userId: string }) => {
             console.log('✅ Admin authenticated via WebSocket:', data);
             setConnectionStatus('connected');
             // Store the authenticated user ID for use in order updates
@@ -63,7 +63,7 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
             console.log('💾 Stored authenticated user ID:', data.userId);
           });
           
-          socket.on('unauthorized', (error) => {
+          socket.on('unauthorized', (error: unknown) => {
             console.error('❌ Admin WebSocket authentication failed:', error);
             setConnectionStatus('error');
           });
