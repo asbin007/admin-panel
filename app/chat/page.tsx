@@ -224,7 +224,7 @@ export default function ChatPage() {
       {
         id: "1",
         customerId: "customer1",
-        adminId: user?.id || "admin1",
+        adminId: user?.[0]?.id || "admin1",
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         Customer: {
@@ -233,16 +233,16 @@ export default function ChatPage() {
           email: "john@example.com"
         },
         Admin: {
-          id: user?.id || "admin1",
-          username: user?.username || "Admin",
-          email: user?.email || "admin@shoemart.com"
+          id: user?.[0]?.id || "admin1",
+          username: user?.[0]?.username || "Admin",
+          email: user?.[0]?.email || "admin@shoemart.com"
         },
         Messages: [
           {
             id: "msg1",
             content: "Hello, I need help with my order",
             senderId: "customer1",
-            receiverId: user?.id || "admin1",
+            receiverId: user?.[0]?.id || "admin1",
             chatId: "1",
             createdAt: new Date(Date.now() - 3600000).toISOString(),
             read: true
@@ -250,7 +250,7 @@ export default function ChatPage() {
           {
             id: "msg2",
             content: "Hi! I'd be happy to help. What's your order number?",
-            senderId: user?.id || "admin1",
+            senderId: user?.[0]?.id || "admin1",
             receiverId: "customer1",
             chatId: "1",
             createdAt: new Date(Date.now() - 1800000).toISOString(),
@@ -262,7 +262,7 @@ export default function ChatPage() {
       {
         id: "2",
         customerId: "customer2",
-        adminId: user?.id || "admin1",
+        adminId: user?.[0]?.id || "admin1",
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         Customer: {
@@ -271,16 +271,16 @@ export default function ChatPage() {
           email: "jane@example.com"
         },
         Admin: {
-          id: user?.id || "admin1",
-          username: user?.username || "Admin",
-          email: user?.email || "admin@shoemart.com"
+          id: user?.[0]?.id || "admin1",
+          username: user?.[0]?.username || "Admin",
+          email: user?.[0]?.email || "admin@shoemart.com"
         },
         Messages: [
           {
             id: "msg3",
             content: "When will my shoes arrive?",
             senderId: "customer2",
-            receiverId: user?.id || "admin1",
+            receiverId: user?.[0]?.id || "admin1",
             chatId: "2",
             createdAt: new Date(Date.now() - 7200000).toISOString(),
             read: false
@@ -360,7 +360,7 @@ export default function ChatPage() {
       const messageData = {
         chatId: selectedChat.id,
         content: newMessage.trim(),
-        // Remove senderId - backend will get it from req.user?.id
+        // Remove senderId - backend will get it from req.user?.[0]?.id
       };
 
       console.log("Sending message data:", messageData);

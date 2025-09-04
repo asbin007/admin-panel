@@ -86,14 +86,14 @@ export default function Dashboard() {
         id: order.id,
         totalPrice: order.totalPrice || 0,
         status: order.status || 'pending',
-        firstName: orderDetail?.Order?.firstName || 'Customer',
-        lastName: orderDetail?.Order?.lastName || `#${order.id.slice(-4)}`,
-        phoneNumber: orderDetail?.Order?.phoneNumber || 'N/A',
+        firstName: 'Customer',
+        lastName: `#${order.id.slice(-4)}`,
+        phoneNumber: 'N/A',
         createdAt: orderDetail?.createdAt || new Date().toISOString(),
         Order: {
-          firstName: orderDetail?.Order?.firstName || 'Customer',
-          lastName: orderDetail?.Order?.lastName || `#${order.id.slice(-4)}`,
-          phoneNumber: orderDetail?.Order?.phoneNumber || 'N/A',
+          firstName: 'Customer',
+          lastName: `#${order.id.slice(-4)}`,
+          phoneNumber: 'N/A',
           totalPrice: order.totalPrice || 0,
           status: order.status || 'pending'
         }
@@ -135,7 +135,7 @@ export default function Dashboard() {
     
     // Group orders by month and calculate revenue
     const monthlyData = orders.reduce((acc, order) => {
-      const date = new Date(order.createdAt || new Date());
+      const date = new Date();
       const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
       const monthName = date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
       

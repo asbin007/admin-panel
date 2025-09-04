@@ -60,7 +60,7 @@ function AdminOrderDetail() {
         
         // Direct API call - bypass WebSocket for now
         console.log('🌐 Using direct API call for order status update');
-        const result = await dispatch(updateOrderStatus(id, value, adminUserId));
+        const result = await dispatch(updateOrderStatus(id, value, adminUserId)) as { success: boolean; error?: string };
         
         if (result.success) {
           console.log('✅ Order status updated successfully via API');
