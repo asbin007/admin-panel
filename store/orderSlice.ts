@@ -110,7 +110,7 @@ export function fetchOrders() {
       dispatch(setStatus(Status.LOADING));
       const response = await APIS.get("/order/all");
       
-      if (response.status === 201) {
+      if (response.status === 200 || response.status === 201) {
         dispatch(setStatus(Status.SUCCESS));
         dispatch(setItems(response.data.data));
       } else {
@@ -119,6 +119,8 @@ export function fetchOrders() {
     } catch (error) {
       console.error("Orders fetch error:", error);
       dispatch(setStatus(Status.ERROR));
+      // Set empty array as fallback
+      dispatch(setItems([]));
     }
   };
 }
@@ -129,7 +131,7 @@ export function fetchAdminOrderDetails(id: string) {
   return async function fetchAdminOrderDetailsThunk(dispatch: AppDispatch) {
     try {
       const response = await APIS.get("/order/" + id);
-      if (response.status === 200) {
+      if (response.status === 200 || response.status === 201) {
         dispatch(setStatus(Status.SUCCESS));
         dispatch(setOrderDetails(response.data.data));
         console.log("order details refreshed, payment status:", response.data.data[0]?.Order?.Payment?.paymentStatus);

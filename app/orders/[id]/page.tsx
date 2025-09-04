@@ -101,7 +101,7 @@ function AdminOrderDetail() {
         
         // Direct API call - bypass WebSocket for now
         console.log('🌐 Using direct API call for payment status update');
-        const result = await dispatch(updatePaymentStatus(id, paymentId, value, adminUserId));
+        const result = await dispatch(updatePaymentStatus(id, paymentId, value, adminUserId)) as { success: boolean; error?: string };
         
         if (result.success) {
           console.log('✅ Payment status updated successfully via API');
