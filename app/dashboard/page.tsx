@@ -15,6 +15,7 @@ import {
   ShoppingBag,
   Star,
   MessageSquare,
+  Download,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -30,8 +31,6 @@ import { useAppSelector, useAppDispatch } from "@/store/hooks";
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { fetchOrders } from "@/store/orderSlice";
 import { fetchProducts } from "@/store/productSlice";
-import { useAppDispatch } from "@/store/hooks";
-import { Download } from "lucide-react";
 import ClientOnly from "@/components/ClientOnly";
 import Link from "next/link";
 
@@ -40,8 +39,6 @@ export default function Dashboard() {
   const { items: orders, status } = useAppSelector((store) => store.orders);
   const { products } = useAppSelector((store) => store.adminProducts);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [isSearchFocused, setIsSearchFocused] = useState(false);
 
   // Debug: Log orders from Redux store
   console.log('🔍 Debug - Orders from Redux store:', orders);
@@ -98,67 +95,6 @@ export default function Dashboard() {
       completedOrders,
       cancelledOrders,
     });
-
-    // Debug: Log order statuses
-    console.log('📊 Dashboard Stats Debug:');
-    console.log('Total orders:', orders.length);
-    console.log('Sample order structure:', orders[0]);
-    console.log('Order statuses:', orders.map(order => ({ 
-      id: order.id, 
-      status: order.status,
-      totalPrice: order.totalPrice,
-      hasOrderDetail: !!order.OrderDetail,
-      hasPayment: !!order.Payment
-    })));
-    
-    // Check for different status formats
-    const uniqueStatuses = [...new Set(orders.map(order => order.status))];
-    console.log('🔍 Unique statuses found:', uniqueStatuses);
-    
-    const totalRevenue = orders.reduce((sum, order) => sum + (order.totalPrice || 0), 0);
-    const totalOrders = orders.length;
-    const pendingOrders = orders.filter(order => {
-      const status = order.status?.toLowerCase();
-      return status === 'pending' || status === 'preparation' || status === 'ontheway';
-    }).length;
-    
-    const completedOrders = orders.filter(order => {
-      const status = order.status?.toLowerCase();
-      return status === 'delivered';
-    }).length;
-    
-    const cancelledOrders = orders.filter(order => {
-      const status = order.status?.toLowerCase();
-      return status === 'cancelled';
-    }).length;
-
-    // Debug: Check what orders are being filtered as completed
-    const completedOrdersList = orders.filter(order => {
-      const status = order.status?.toLowerCase();
-      return status === 'delivered';
-    });
-    console.log('✅ Completed orders found:', completedOrdersList.length);
-    console.log('✅ Completed orders details:', completedOrdersList.map(order => ({ 
-      id: order.id, 
-      status: order.status,
-      totalPrice: order.totalPrice 
-    })));
-
-    console.log('📈 Calculated stats:', {
-      totalRevenue,
-      totalOrders,
-      pendingOrders,
-      completedOrders,
-      cancelledOrders,
-    });
-
-    return {
-      totalRevenue,
-      totalOrders,
-      pendingOrders,
-      completedOrders,
-      cancelledOrders,
-    };
 
     return {
       totalRevenue,
@@ -237,61 +173,9 @@ export default function Dashboard() {
       });
     }, [orders]);
 
-  // Search and filter functionality
-  const filteredOrders = useMemo(() => {
-    if (!searchTerm.trim()) return recentOrders;
-    
-    const searchLower = searchTerm.toLowerCase();
-    return recentOrders.filter(order => {
-      const fullName = `${order.firstName} ${order.lastName}`.toLowerCase();
-      const status = order.status.toLowerCase();
-      const amount = order.totalPrice.toString();
-      const phone = order.phoneNumber.toLowerCase();
-      
-      return (
-        fullName.includes(searchLower) ||
-        status.includes(searchLower) ||
-        amount.includes(searchLower) ||
-        phone.includes(searchLower)
-      );
-    });
-  }, [recentOrders, searchTerm]);
-
-  // Clear search function
-  const clearSearch = useCallback(() => {
-    setSearchTerm("");
-    setIsSearchFocused(false);
-  }, []);
 
 
 
-  // Memoized monthly analytics data
-  const monthlyAnalytics = useMemo(() => {
-    if (orders.length === 0) return [];
-    
-    // Group orders by month and calculate revenue
-    const monthlyData = orders.reduce((acc, order) => {
-      const date = new Date(order.createdAt || new Date());
-      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-      const monthName = date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-      
-      if (!acc[monthKey]) {
-        acc[monthKey] = {
-          month: monthName,
-          revenue: 0,
-          orders: 0,
-          color: `hsl(${Math.random() * 360}, 70%, 50%)`
-        };
-      }
-      
-      acc[monthKey].revenue += order.totalPrice || 0;
-      acc[monthKey].orders += 1;
-      
-      return acc;
-    }, {} as Record<string, { month: string; revenue: number; orders: number; color: string }>);
-    
-    return Object.values(monthlyData);
-  }, [orders]);
 
   // Memoized recent products data
   const recentProducts = useMemo(() => {

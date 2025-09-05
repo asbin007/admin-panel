@@ -28,7 +28,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import AdminLayout from "@/app/adminLayout/adminLayout";
 import OrderStatusManager from "@/components/OrderStatusManager";
@@ -154,14 +153,13 @@ function AdminOrderDetail() {
   }, [id, dispatch]);
 
 
-  const handleOrderStatusChange = async (value: string) => {
+  const handleOrderStatusChange = async (value: string): Promise<{ success: boolean; error?: string }> => {
     if (id && typeof id === 'string' && orderDetails.length > 0) {
       try {
         setIsUpdating(true);
         // Get current order and payment status for validation
         const currentOrder = orderDetails[0];
         const currentPaymentStatus = currentOrder?.Order?.Payment?.paymentStatus;
-        const currentOrderStatus = currentOrder?.Order?.status;
         const paymentMethod = currentOrder?.Order?.Payment?.paymentMethod;
         
         // Client-side validation
@@ -171,7 +169,7 @@ function AdminOrderDetail() {
             duration: 5000,
           });
           setIsUpdating(false);
-          return;
+          return { success: false, error: 'Payment required for delivery' };
         }
         
         if (value === 'preparation' && 
@@ -182,7 +180,7 @@ function AdminOrderDetail() {
             duration: 5000,
           });
           setIsUpdating(false);
-          return;
+          return { success: false, error: 'Payment required for preparation' };
         }
         
         // Get admin user ID from localStorage
@@ -209,6 +207,7 @@ function AdminOrderDetail() {
         } else if (result.error && result.error !== 'WebSocket timeout') {
           // Only show error if it's not a WebSocket timeout
           console.error('❌ Failed to update order status:', result.error);
+          setIsUpdating(false);
           return { success: false, error: result.error || 'Unknown error' };
         } else {
           console.error('❌ Failed to update order status:', result.error);
@@ -240,7 +239,7 @@ function AdminOrderDetail() {
     return { success: false, error: 'Invalid order ID or no order details' };
   };
 
-  const handlePaymentStatusChange = async (value: string) => {
+  const handlePaymentStatusChange = async (value: string): Promise<{ success: boolean; error?: string }> => {
     if (id && typeof id === 'string' && orderDetails.length > 0) {
       try {
         setIsUpdating(true);
@@ -261,7 +260,7 @@ function AdminOrderDetail() {
             duration: 5000,
           });
           setIsUpdating(false);
-          return;
+          return { success: false, error: 'Cannot change payment status for delivered orders' };
         }
         
         if (currentPaymentStatus === 'paid' && value === 'unpaid' && currentOrderStatus === 'ontheway') {
@@ -270,7 +269,7 @@ function AdminOrderDetail() {
             duration: 5000,
           });
           setIsUpdating(false);
-          return;
+          return { success: false, error: 'Cannot change payment status for orders on the way' };
         }
         
         // Get admin user ID from localStorage

@@ -6,8 +6,11 @@ import { ThemeProvider } from '@/components/ui/theme-provider';
 import io from 'socket.io-client';
 import { useEffect, useState } from 'react';
 
+// Socket URL configuration
+const SOCKET_URL = "https://nike-backend-1-g9i6.onrender.com";
+
 // Create socket instance with better configuration
-export const socket = io("https://nike-backend-1-g9i6.onrender.com", {
+export const socket = io(SOCKET_URL, {
   autoConnect: false,
   transports: ['websocket', 'polling'],
   timeout: 10000,

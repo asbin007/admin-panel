@@ -91,7 +91,6 @@ export default function CustomerChat({ isOpen, onToggle, onClose }: CustomerChat
         console.error('Error parsing user data:', error);
       }
     }
-<<<<<<< HEAD
 
     // Initialize chat for customer
     initializeCustomerChat();
@@ -105,7 +104,7 @@ export default function CustomerChat({ isOpen, onToggle, onClose }: CustomerChat
 
     // Listen for typing indicators
     socket.on("typing", ({ chatId, userId }: { chatId: string; userId: string }) => {
-      if (chat && chatId === chat.id && userId !== user?.[0]?.id) {
+      if (chat && chatId === chat.id && userId !== user?.id) {
         setTypingUsers(prev => [...prev.filter(id => id !== userId), userId]);
       }
     });
