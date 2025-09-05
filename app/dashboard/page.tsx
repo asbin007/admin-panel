@@ -30,10 +30,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import AdminLayout from "../adminLayout/adminLayout";
-import { useAppSelector } from "@/store/hooks";
+import { useAppSelector, useAppDispatch } from "@/store/hooks";
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { fetchOrders } from "@/store/orderSlice";
-import { useAppDispatch } from "@/store/hooks";
 import { Download, X } from "lucide-react";
 
 
@@ -54,6 +53,7 @@ export default function Dashboard() {
     totalOrders: 0,
     pendingOrders: 0,
     completedOrders: 0,
+    cancelledOrders: 0,
       };
     }
 
@@ -64,22 +64,37 @@ export default function Dashboard() {
     console.log('Order statuses:', orders.map(order => ({ 
       id: order.id, 
       status: order.status,
-      totalPrice: order.totalPrice 
+      totalPrice: order.totalPrice,
+      hasOrderDetail: !!order.OrderDetail,
+      hasPayment: !!order.Payment
     })));
+    
+    // Check for different status formats
+    const uniqueStatuses = [...new Set(orders.map(order => order.status))];
+    console.log('🔍 Unique statuses found:', uniqueStatuses);
     
     const totalRevenue = orders.reduce((sum, order) => sum + (order.totalPrice || 0), 0);
     const totalOrders = orders.length;
-    const pendingOrders = orders.filter(order => 
-      order.status === 'pending' || order.status === 'preparation'
-    ).length;
-    const completedOrders = orders.filter(order => 
-      order.status?.toLowerCase() === 'delivered'
-    ).length;
+    const pendingOrders = orders.filter(order => {
+      const status = order.status?.toLowerCase();
+      return status === 'pending' || status === 'preparation' || status === 'ontheway';
+    }).length;
+    
+    const completedOrders = orders.filter(order => {
+      const status = order.status?.toLowerCase();
+      return status === 'delivered';
+    }).length;
+    
+    const cancelledOrders = orders.filter(order => {
+      const status = order.status?.toLowerCase();
+      return status === 'cancelled';
+    }).length;
 
     // Debug: Check what orders are being filtered as completed
-    const completedOrdersList = orders.filter(order => 
-      order.status?.toLowerCase() === 'delivered'
-    );
+    const completedOrdersList = orders.filter(order => {
+      const status = order.status?.toLowerCase();
+      return status === 'delivered';
+    });
     console.log('✅ Completed orders found:', completedOrdersList.length);
     console.log('✅ Completed orders details:', completedOrdersList.map(order => ({ 
       id: order.id, 
@@ -91,7 +106,8 @@ export default function Dashboard() {
       totalRevenue,
       totalOrders,
       pendingOrders,
-      completedOrders
+      completedOrders,
+      cancelledOrders
     });
 
     return {
@@ -99,6 +115,7 @@ export default function Dashboard() {
         totalOrders,
         pendingOrders,
         completedOrders,
+        cancelledOrders,
     };
   }, [orders]);
 
@@ -153,7 +170,7 @@ export default function Dashboard() {
   const clearSearch = useCallback(() => {
     setSearchTerm("");
     setIsSearchFocused(false);
-  }, [filteredOrders, searchTerm]);
+  }, []);
 
 
 
