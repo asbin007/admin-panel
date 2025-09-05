@@ -29,18 +29,11 @@ import AdminLayout from "../adminLayout/adminLayout";
 import { useAppSelector, useAppDispatch } from "@/store/hooks";
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { fetchOrders } from "@/store/orderSlice";
-<<<<<<< HEAD
 import { fetchProducts } from "@/store/productSlice";
 import { useAppDispatch } from "@/store/hooks";
 import { Download } from "lucide-react";
 import ClientOnly from "@/components/ClientOnly";
 import Link from "next/link";
-=======
-import { Download, X } from "lucide-react";
-
-
-// Removed unused Order interface
->>>>>>> c87a35df740d77136a7ed783a720acf25df9db87
 
 export default function Dashboard() {
   const dispatch = useAppDispatch();

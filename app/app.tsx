@@ -7,22 +7,6 @@ import io from 'socket.io-client';
 import { useEffect, useState } from 'react';
 
 // Create socket instance with better configuration
-<<<<<<< HEAD
-const SOCKET_URL = "https://nike-backend-1-g9i6.onrender.com";
-
-export const socket = io(SOCKET_URL, {
-  autoConnect: false,
-  transports: ['websocket'], // Only use websocket, no polling
-  timeout: 5000, // 5 second timeout
-  forceNew: false,
-  reconnection: false, // Disable reconnection to prevent repeated errors
-  upgrade: false, // Disable upgrade
-  rememberUpgrade: false,
-  // withCredentials: true,
-  // Add additional options for better error handling
-  rejectUnauthorized: false,
-  secure: process.env.NODE_ENV === 'production',
-=======
 export const socket = io("https://nike-backend-1-g9i6.onrender.com", {
   autoConnect: false,
   transports: ['websocket', 'polling'],

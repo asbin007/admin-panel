@@ -140,26 +140,7 @@ export function fetchOrders() {
   return async function fetchOrdersThunk(dispatch: AppDispatch) {
     try {
       dispatch(setStatus(Status.LOADING));
-<<<<<<< HEAD
-      console.log('🔍 Debug - Fetching orders from API...');
-      
-      // Check if we have a token
-      const token = localStorage.getItem("tokenauth");
-      console.log('🔍 Debug - Auth token available:', !!token);
-      
-      const response = await APIS.get("/order/all");
-      
-      console.log('🔍 Debug - API Response status:', response.status);
-      console.log('🔍 Debug - API Response data:', response.data);
-      console.log('🔍 Debug - Orders data:', response.data.data);
-      console.log('🔍 Debug - Orders count:', response.data.data?.length || 0);
-      
-      if (response.status === 200 || response.status === 201) {
-        dispatch(setStatus(Status.SUCCESS));
-        dispatch(setItems(response.data.data || []));
-        console.log('🔍 Debug - Orders set in store:', response.data.data);
-=======
-      
+
       // Try multiple endpoints
       let response;
       try {

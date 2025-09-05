@@ -7,14 +7,11 @@ import {
   User,
   MapPin,
   CreditCard,
-<<<<<<< HEAD
-=======
   Truck,
   CheckCircle,
   Clock,
   XCircle,
   Loader2,
->>>>>>> c87a35df740d77136a7ed783a720acf25df9db87
 } from "lucide-react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
