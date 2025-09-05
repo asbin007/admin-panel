@@ -18,7 +18,6 @@ export default function PerformanceMonitor({ componentName, children }: Performa
       const endTime = performance.now();
       const loadDuration = endTime - startTime;
       setLoadTime(loadDuration);
-      setIsLoading(false);
       
       // Log performance data in development
       if (process.env.NODE_ENV === 'development') {

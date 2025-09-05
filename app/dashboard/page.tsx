@@ -26,14 +26,21 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import AdminLayout from "../adminLayout/adminLayout";
-import { useAppSelector } from "@/store/hooks";
+import { useAppSelector, useAppDispatch } from "@/store/hooks";
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { fetchOrders } from "@/store/orderSlice";
+<<<<<<< HEAD
 import { fetchProducts } from "@/store/productSlice";
 import { useAppDispatch } from "@/store/hooks";
 import { Download } from "lucide-react";
 import ClientOnly from "@/components/ClientOnly";
 import Link from "next/link";
+=======
+import { Download, X } from "lucide-react";
+
+
+// Removed unused Order interface
+>>>>>>> c87a35df740d77136a7ed783a720acf25df9db87
 
 export default function Dashboard() {
   const dispatch = useAppDispatch();
@@ -55,6 +62,7 @@ export default function Dashboard() {
     if (displayOrders.length === 0) {
       console.log('🔍 Debug - No orders found, returning zero stats');
       return {
+<<<<<<< HEAD
         totalRevenue: 0,
         totalOrders: 0,
         pendingOrders: 0,
@@ -90,10 +98,67 @@ export default function Dashboard() {
     }).length;
 
     console.log('🔍 Debug - Calculated stats:', {
+=======
+    totalRevenue: 0,
+    totalOrders: 0,
+    pendingOrders: 0,
+    completedOrders: 0,
+    cancelledOrders: 0,
+      };
+    }
+
+    // Debug: Log order statuses
+    console.log('📊 Dashboard Stats Debug:');
+    console.log('Total orders:', orders.length);
+    console.log('Sample order structure:', orders[0]);
+    console.log('Order statuses:', orders.map(order => ({ 
+      id: order.id, 
+      status: order.status,
+      totalPrice: order.totalPrice,
+      hasOrderDetail: !!order.OrderDetail,
+      hasPayment: !!order.Payment
+    })));
+    
+    // Check for different status formats
+    const uniqueStatuses = [...new Set(orders.map(order => order.status))];
+    console.log('🔍 Unique statuses found:', uniqueStatuses);
+    
+    const totalRevenue = orders.reduce((sum, order) => sum + (order.totalPrice || 0), 0);
+    const totalOrders = orders.length;
+    const pendingOrders = orders.filter(order => {
+      const status = order.status?.toLowerCase();
+      return status === 'pending' || status === 'preparation' || status === 'ontheway';
+    }).length;
+    
+    const completedOrders = orders.filter(order => {
+      const status = order.status?.toLowerCase();
+      return status === 'delivered';
+    }).length;
+    
+    const cancelledOrders = orders.filter(order => {
+      const status = order.status?.toLowerCase();
+      return status === 'cancelled';
+    }).length;
+
+    // Debug: Check what orders are being filtered as completed
+    const completedOrdersList = orders.filter(order => {
+      const status = order.status?.toLowerCase();
+      return status === 'delivered';
+    });
+    console.log('✅ Completed orders found:', completedOrdersList.length);
+    console.log('✅ Completed orders details:', completedOrdersList.map(order => ({ 
+      id: order.id, 
+      status: order.status,
+      totalPrice: order.totalPrice 
+    })));
+
+    console.log('📈 Calculated stats:', {
+>>>>>>> c87a35df740d77136a7ed783a720acf25df9db87
       totalRevenue,
       totalOrders,
       pendingOrders,
       completedOrders,
+<<<<<<< HEAD
       cancelledOrders,
     });
 
@@ -103,6 +168,17 @@ export default function Dashboard() {
       pendingOrders,
       completedOrders,
       cancelledOrders,
+=======
+      cancelledOrders
+    });
+
+    return {
+        totalRevenue,
+        totalOrders,
+        pendingOrders,
+        completedOrders,
+        cancelledOrders,
+>>>>>>> c87a35df740d77136a7ed783a720acf25df9db87
     };
   }, [displayOrders]);
 
@@ -132,6 +208,7 @@ export default function Dashboard() {
           fullName = `${order.Order.firstName} ${order.Order.lastName}`;
           phone = order.Order.phoneNumber || `#${order.id.slice(-6)}`;
         }
+<<<<<<< HEAD
         // Method 2: Check if order has Order object with just firstName
         else if (order.Order && order.Order.firstName) {
           fullName = order.Order.firstName;
@@ -170,6 +247,56 @@ export default function Dashboard() {
           amount: `Rs ${(order.totalPrice || 0).toFixed(2)}`,
           phone: phone || `#${order.id.slice(-6)}`,
           createdAt: order.createdAt || new Date().toISOString()
+=======
+      };
+    });
+  }, [orders]);
+
+  // Search and filter functionality
+  const filteredOrders = useMemo(() => {
+    if (!searchTerm.trim()) return recentOrders;
+    
+    const searchLower = searchTerm.toLowerCase();
+    return recentOrders.filter(order => {
+      const fullName = `${order.firstName} ${order.lastName}`.toLowerCase();
+      const status = order.status.toLowerCase();
+      const amount = order.totalPrice.toString();
+      const phone = order.phoneNumber.toLowerCase();
+      
+      return (
+        fullName.includes(searchLower) ||
+        status.includes(searchLower) ||
+        amount.includes(searchLower) ||
+        phone.includes(searchLower)
+      );
+    });
+  }, [recentOrders, searchTerm]);
+
+  // Clear search function
+  const clearSearch = useCallback(() => {
+    setSearchTerm("");
+    setIsSearchFocused(false);
+  }, []);
+
+
+
+  // Memoized monthly analytics data
+  const monthlyAnalytics = useMemo(() => {
+    if (orders.length === 0) return [];
+    
+    // Group orders by month and calculate revenue
+    const monthlyData = orders.reduce((acc, order) => {
+      const date = new Date();
+      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      const monthName = date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+      
+      if (!acc[monthKey]) {
+        acc[monthKey] = {
+          month: monthName,
+          revenue: 0,
+          orders: 0,
+          color: `hsl(${Math.random() * 360}, 70%, 50%)`
+>>>>>>> c87a35df740d77136a7ed783a720acf25df9db87
         };
       });
   }, [displayOrders]);

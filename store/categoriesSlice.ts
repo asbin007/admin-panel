@@ -73,16 +73,31 @@ export function addCategory(categoryName: string) {
 export function fetchCategoryItems() {
     return async function fetchCategoryItemsThunk(dispatch: AppDispatch) {
         try {
-            const response = await API.get("/category");
-            if (response.status === 200) {
-                dispatch(setItems(response.data.data));
+            // Try multiple endpoints
+            let response;
+            try {
+                response = await API.get("/categories");
+            } catch (firstError) {
+                console.log("Trying /category endpoint...");
+                try {
+                    response = await API.get("/category");
+                } catch (secondError) {
+                    console.log("Trying /admin/categories endpoint...");
+                    response = await API.get("/admin/categories");
+                }
+            }
+            
+            if (response && (response.status === 200 || response.status === 201)) {
+                dispatch(setItems(response.data.data || response.data || []));
                 dispatch(setStatus(Status.SUCCESS));
             } else {
                 dispatch(setStatus(Status.ERROR));
+                dispatch(setItems([]));
             }
         } catch (error) {
-            console.log(error);
+            console.log("Categories fetch error:", error);
             dispatch(setStatus(Status.ERROR));
+            dispatch(setItems([]));
         }
     };
 }

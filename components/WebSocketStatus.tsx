@@ -10,8 +10,6 @@ export default function WebSocketStatus() {
     const updateStatus = () => {
       if (socket.connected) {
         setStatus('connected');
-      } else if (socket.connecting) {
-        setStatus('connecting');
       } else {
         setStatus('disconnected');
       }

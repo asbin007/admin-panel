@@ -295,7 +295,7 @@ const AddProductForm: React.FC<AddProductFormProps> = ({ closeModal }) => {
             </div>
           </CardHeader>
 
-          <CardContent className="p-4 sm:p-6 lg:p-8">
+          <CardContent className="p-4 sm:p-6 lg:p-8 overflow-y-auto max-h-[calc(90vh-120px)]">
             <form onSubmit={handleSubmit}>
               <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
                 <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 bg-muted p-1 rounded-lg">
@@ -815,7 +815,7 @@ const AddProductForm: React.FC<AddProductFormProps> = ({ closeModal }) => {
               </Tabs>
 
               {/* Form Actions */}
-              <div className="flex gap-4 pt-8 border-t border-border">
+              <div className="flex gap-4 pt-8 border-t border-border sticky bottom-0 bg-background">
                 <Button
                   type="button"
                   variant="outline"

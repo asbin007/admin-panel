@@ -7,7 +7,6 @@ import { Input } from "@/components/ui/input";
 // Removed unused Card, Badge, Avatar imports
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { socket } from "@/app/app";
-import { useAppSelector } from "@/store/hooks";
 
 interface Message {
   id: string;
@@ -70,20 +69,29 @@ export default function CustomerChat({ isOpen, onToggle, onClose }: CustomerChat
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { user } = useAppSelector((store) => store.auth);
+  const [user, setUser] = useState<{
+    id: string;
+    username: string;
+    email: string;
+    role: string;
+  } | null>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
+  // Load user from localStorage
   useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
-
-  useEffect(() => {
-    if (!socket.connected || !user) {
-      return;
+    const userData = localStorage.getItem("userData");
+    if (userData) {
+      try {
+        const parsedUser = JSON.parse(userData);
+        setUser(parsedUser);
+      } catch (error) {
+        console.error('Error parsing user data:', error);
+      }
     }
+<<<<<<< HEAD
 
     // Initialize chat for customer
     initializeCustomerChat();
@@ -113,7 +121,7 @@ export default function CustomerChat({ isOpen, onToggle, onClose }: CustomerChat
       socket.off("typing");
       socket.off("stopTyping");
     };
-  }, [initializeCustomerChat]);
+  }, []);
 
   const initializeCustomerChat = async () => {
     try {
@@ -213,6 +221,45 @@ export default function CustomerChat({ isOpen, onToggle, onClose }: CustomerChat
     }
   };
 
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
+  useEffect(() => {
+    if (!socket.connected || !user) {
+      return;
+    }
+
+    // Initialize chat for customer
+    initializeCustomerChat();
+
+    // Listen for new messages
+    socket.on("receiveMessage", (message: Message) => {
+      if (chat && message.chatId === chat.id) {
+        setMessages(prev => [...prev, message]);
+      }
+    });
+
+    // Listen for typing indicators
+    socket.on("typing", ({ chatId, userId }: { chatId: string; userId: string }) => {
+      if (chat && chatId === chat.id && userId !== user.id) {
+        setTypingUsers(prev => [...prev.filter(id => id !== userId), userId]);
+      }
+    });
+
+    socket.on("stopTyping", ({ chatId, userId }: { chatId: string; userId: string }) => {
+      if (chat && chatId === chat.id) {
+        setTypingUsers(prev => prev.filter(id => id !== userId));
+      }
+    });
+
+    return () => {
+      socket.off("receiveMessage");
+      socket.off("typing");
+      socket.off("stopTyping");
+    };
+  }, [initializeCustomerChat]);
+
   const sendMessage = async () => {
     if (!newMessage.trim() || !chat) return;
 
@@ -261,14 +308,14 @@ export default function CustomerChat({ isOpen, onToggle, onClose }: CustomerChat
     
     socket.emit("typing", { 
       chatId: chat.id, 
-      userId: user?.[0]?.id 
+      userId: user?.id 
     });
     
     // Stop typing after 2 seconds
     setTimeout(() => {
       socket.emit("stopTyping", { 
         chatId: chat.id, 
-        userId: user?.[0]?.id 
+        userId: user?.id 
       });
     }, 2000);
   };
@@ -468,10 +515,10 @@ export default function CustomerChat({ isOpen, onToggle, onClose }: CustomerChat
                 messages.map((message) => (
                   <div
                     key={message.id}
-                    className={`flex ${message.senderId === user?.[0]?.id ? "justify-end" : "justify-start"}`}
+                    className={`flex ${message.senderId === user?.id ? "justify-end" : "justify-start"}`}
                   >
                     <div className="flex items-end gap-2 max-w-80">
-                      {message.senderId !== user?.[0]?.id && (
+                      {message.senderId !== user?.id && (
                         <div className="w-6 h-6 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white text-xs font-semibold">
                           S
                         </div>
@@ -479,7 +526,7 @@ export default function CustomerChat({ isOpen, onToggle, onClose }: CustomerChat
                       
                       <div
                         className={`px-4 py-3 rounded-2xl shadow-lg max-w-64 ${
-                          message.senderId === user?.[0]?.id
+                          message.senderId === user?.id
                             ? "bg-gradient-to-r from-blue-500 to-purple-600 text-white"
                             : "bg-white dark:bg-slate-700 text-slate-900 dark:text-white border border-slate-200/50 dark:border-slate-600/50"
                         }`}
@@ -530,7 +577,7 @@ export default function CustomerChat({ isOpen, onToggle, onClose }: CustomerChat
                           <p className="text-xs opacity-70">
                             {formatTime(message.createdAt)}
                           </p>
-                          {message.senderId === user?.[0]?.id && (
+                          {message.senderId === user?.id && (
                             <div className="flex items-center gap-1">
                               {message.read ? (
                                 <CheckCheck className="h-3 w-3 text-blue-200" />

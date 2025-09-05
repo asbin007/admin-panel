@@ -7,6 +7,7 @@ import io from 'socket.io-client';
 import { useEffect, useState } from 'react';
 
 // Create socket instance with better configuration
+<<<<<<< HEAD
 const SOCKET_URL = "https://nike-backend-1-g9i6.onrender.com";
 
 export const socket = io(SOCKET_URL, {
@@ -21,6 +22,20 @@ export const socket = io(SOCKET_URL, {
   // Add additional options for better error handling
   rejectUnauthorized: false,
   secure: process.env.NODE_ENV === 'production',
+=======
+export const socket = io("https://nike-backend-1-g9i6.onrender.com", {
+  autoConnect: false,
+  transports: ['websocket', 'polling'],
+  timeout: 10000,
+  forceNew: true,
+  reconnection: true,
+  reconnectionAttempts: 5,
+  reconnectionDelay: 1000,
+  reconnectionDelayMax: 5000,
+  auth: {
+    token: typeof window !== 'undefined' ? localStorage.getItem("tokenauth") : null
+  }
+>>>>>>> c87a35df740d77136a7ed783a720acf25df9db87
 });
 
 // Make socket available globally
@@ -94,10 +109,10 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
           setConnectionStatus('connecting');
           console.log('🔐 Connecting with token:', token.substring(0, 20) + '...');
           
-          // Set auth token and connect
-          (socket as unknown as { auth: { token: string } }).auth = { token };
+          // Connect with auth token
           socket.connect();
           
+<<<<<<< HEAD
           // Add authentication event listener
           socket.on('authenticated', (data: { userId: string }) => {
             console.log('✅ Admin authenticated via WebSocket:', data);
@@ -113,13 +128,19 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
             setIsWebSocketEnabled(false);
           });
           
+=======
+>>>>>>> c87a35df740d77136a7ed783a720acf25df9db87
           // Set a timeout to check if connection is successful
           connectionCheckTimeout = setTimeout(() => {
             if (!socket.connected) {
               setConnectionStatus('error');
+<<<<<<< HEAD
               setIsWebSocketEnabled(false);
               console.warn('WebSocket connection timeout - server might not be running');
               console.warn('💡 Falling back to API-only mode');
+=======
+              console.warn('WebSocket connection timeout');
+>>>>>>> c87a35df740d77136a7ed783a720acf25df9db87
             }
           }, 5000);
         } else if (!token) {
@@ -137,6 +158,7 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
       }
     };
 
+<<<<<<< HEAD
     socket.on('connect', () => {
       console.log('✅ WebSocket connected successfully to:', SOCKET_URL);
       console.log('🔌 Socket ID:', socket.id);
@@ -162,6 +184,8 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
         adminId: token ? 'authenticated' : 'anonymous'
       });
     });
+=======
+>>>>>>> c87a35df740d77136a7ed783a720acf25df9db87
     
     socket.on('connect_error', (error: unknown) => {
       console.error('❌ WebSocket connection error:', error);
@@ -238,6 +262,21 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
       setIsWebSocketEnabled(false);
     });
     
+    // Simple WebSocket event listeners
+    socket.on('connect', () => {
+      console.log('✅ WebSocket connected successfully');
+      setConnectionStatus('connected');
+      setIsWebSocketEnabled(true);
+      
+      // Clear any pending reconnect attempts
+      if (reconnectTimeout) {
+        clearTimeout(reconnectTimeout);
+      }
+      if (connectionCheckTimeout) {
+        clearTimeout(connectionCheckTimeout);
+      }
+    });
+
     // Initial setup
     setupSocket();
 
