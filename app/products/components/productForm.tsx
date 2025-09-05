@@ -15,7 +15,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Switch } from "@/components/ui/switch"
 import toast from "react-hot-toast"
 import { useAppDispatch, useAppSelector } from "@/store/hooks"
-import { addProduct } from "@/store/productSlice"
+import { addProduct, updateProducts } from "@/store/productSlice"
+import { IProduct } from "../types"
 import { resetStatus, fetchCategoryItems } from "@/store/categoriesSlice"
 import { fetchCollection } from "@/store/collectionSlice"
 import {
@@ -38,6 +39,8 @@ import {
 
 interface AddProductFormProps {
   closeModal: () => void
+  editProduct?: IProduct // Product data for editing
+  isEdit?: boolean
 }
 
 interface FormData {
@@ -50,6 +53,10 @@ interface FormData {
   price: number
   inStock: boolean
   isNew: boolean
+  isActive: boolean
+  isFeatured: boolean
+  isNewArrival: boolean
+  isBestSeller: boolean
   totalStock: number
   features: string[]
   colors: string[]
@@ -68,7 +75,7 @@ interface FormErrors {
   [key: string]: string
 }
 
-const AddProductForm: React.FC<AddProductFormProps> = ({ closeModal }) => {
+const AddProductForm: React.FC<AddProductFormProps> = ({ closeModal, editProduct, isEdit = false }) => {
   const dispatch = useAppDispatch()
   const { items: categories } = useAppSelector((store) => store.category)
   const { collection: collections } = useAppSelector((store) => store.collections)
@@ -93,6 +100,10 @@ const AddProductForm: React.FC<AddProductFormProps> = ({ closeModal }) => {
     price: 0,
     inStock: true,
     isNew: false,
+    isActive: true,
+    isFeatured: false,
+    isNewArrival: false,
+    isBestSeller: false,
     totalStock: 0,
     features: [],
     colors: [],
@@ -100,6 +111,40 @@ const AddProductForm: React.FC<AddProductFormProps> = ({ closeModal }) => {
     Category: { id: "", categoryName: "" },
     Collection: { id: "", collectionName: "" },
   })
+
+  // Load edit data when editing
+  useEffect(() => {
+    if (isEdit && editProduct) {
+      setFormData({
+        images: [], // Will be handled separately for existing images
+        name: editProduct.name || "",
+        description: editProduct.description || "",
+        brand: editProduct.brand || "",
+        discount: editProduct.discount || 0,
+        originalPrice: editProduct.originalPrice || 0,
+        price: editProduct.price || 0,
+        inStock: editProduct.inStock !== undefined ? editProduct.inStock : true,
+        isNew: editProduct.isNew !== undefined ? editProduct.isNew : false,
+        totalStock: editProduct.totalStock || 0,
+        isActive: editProduct.isActive !== undefined ? editProduct.isActive : true,
+        isFeatured: editProduct.isFeatured !== undefined ? editProduct.isFeatured : false,
+        isNewArrival: editProduct.isNewArrival !== undefined ? editProduct.isNewArrival : false,
+        isBestSeller: editProduct.isBestSeller !== undefined ? editProduct.isBestSeller : false,
+        features: Array.isArray(editProduct.features) ? editProduct.features : [],
+        colors: Array.isArray(editProduct.colors) ? editProduct.colors : [],
+        sizes: Array.isArray(editProduct.sizes) ? editProduct.sizes : [],
+        Category: editProduct.Category || { id: "", categoryName: "" },
+        Collection: editProduct.Collection || { id: "", collectionName: "" },
+      })
+      
+      // Set existing images as previews
+      if (editProduct.images && editProduct.images.length > 0) {
+        setImagePreviews(editProduct.images.map((img: string) => 
+          img.startsWith('http') ? img : `https://res.cloudinary.com/dxpe7jikz/image/upload/v1750340657${img.replace('/uploads', '')}.jpg`
+        ))
+      }
+    }
+  }, [isEdit, editProduct])
 
   // Auto-calculate price based on original price and discount
   useEffect(() => {
@@ -249,13 +294,18 @@ const AddProductForm: React.FC<AddProductFormProps> = ({ closeModal }) => {
     })
 
     try {
-      await dispatch(addProduct(data))
-      toast.success("Product has been added successfully!")
+      if (isEdit && editProduct) {
+        await dispatch(updateProducts(editProduct.id, data))
+        toast.success("Product has been updated successfully!")
+      } else {
+        await dispatch(addProduct(data))
+        toast.success("Product has been added successfully!")
+      }
       closeModal()
       dispatch(resetStatus())
     } catch (error) {
-      console.error("Error adding product:", error)
-      toast.error("Failed to add product. Please try again.")
+      console.error(`Error ${isEdit ? 'updating' : 'adding'} product:`, error)
+      toast.error(`Failed to ${isEdit ? 'update' : 'add'} product. Please try again.`)
     } finally {
       setLoading(false)
     }
@@ -292,7 +342,7 @@ const AddProductForm: React.FC<AddProductFormProps> = ({ closeModal }) => {
                 <div className="p-2 bg-primary/10 rounded-lg">
                   <Package className="h-6 w-6 text-primary" />
             </div>
-                Create New Product
+                {isEdit ? "Edit Product" : "Create New Product"}
               </CardTitle>
               <Button
                 variant="ghost"
@@ -845,12 +895,12 @@ const AddProductForm: React.FC<AddProductFormProps> = ({ closeModal }) => {
                   {loading ? (
                     <>
                       <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2" />
-                      Saving Product...
+                      {isEdit ? "Updating Product..." : "Saving Product..."}
                     </>
                   ) : (
                     <>
                       <Save className="h-5 w-5 mr-2" />
-                      Save Product
+                      {isEdit ? "Update Product" : "Save Product"}
                     </>
                   )}
             </Button>

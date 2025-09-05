@@ -55,6 +55,8 @@ export function ProductTable({ products = [] }: { products?: IProduct[] }) {
   const router = useRouter();
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<IProduct | null>(null);
 
   const handleDelete = async (id: string) => {
     if (confirm("Are you sure you want to delete this product?")) {
@@ -66,6 +68,18 @@ export function ProductTable({ products = [] }: { products?: IProduct[] }) {
         alert("Failed to delete product. Please try again.");
       }
     }
+  };
+
+  const handleEdit = (product: IProduct) => {
+    setEditingProduct(product);
+    setIsEditMode(true);
+    setIsDialogOpen(true);
+  };
+
+  const handleCloseDialog = () => {
+    setIsDialogOpen(false);
+    setIsEditMode(false);
+    setEditingProduct(null);
   };
 
   const formatPrice = (price?: number) => {
@@ -196,6 +210,9 @@ export function ProductTable({ products = [] }: { products?: IProduct[] }) {
                   <DropdownMenuItem asChild>
                     <Link href={`/products/${product.id}`}>View</Link>
                   </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleEdit(product)}>
+                    Edit
+                  </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => handleDelete(product.id)}>
                     Delete
                   </DropdownMenuItem>
@@ -228,12 +245,19 @@ export function ProductTable({ products = [] }: { products?: IProduct[] }) {
             </DialogTrigger>
             <DialogContent className="max-w-[90vw] w-full md:max-w-7xl p-0 m-0 h-[90vh] overflow-y-auto">
               <DialogHeader className="px-6 py-4 border-b sticky top-0 bg-background z-10">
-                <DialogTitle>Add New Product</DialogTitle>
+                <DialogTitle>{isEditMode ? "Edit Product" : "Add New Product"}</DialogTitle>
                 <DialogDescription>
-                  Fill out the form to add a new product to the inventory.
+                  {isEditMode 
+                    ? "Update the product information below." 
+                    : "Fill out the form to add a new product to the inventory."
+                  }
                 </DialogDescription>
               </DialogHeader>
-              <ProductForm closeModal={() => setIsDialogOpen(false)} />
+              <ProductForm 
+                closeModal={handleCloseDialog} 
+                editProduct={editingProduct || undefined}
+                isEdit={isEditMode}
+              />
             </DialogContent>
           </Dialog>
         </CardHeader>

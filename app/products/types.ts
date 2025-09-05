@@ -10,6 +10,10 @@ export interface IProduct {
   price: number;
   inStock: boolean;
   isNew: boolean;
+  isActive?: boolean;
+  isFeatured?: boolean;
+  isNewArrival?: boolean;
+  isBestSeller?: boolean;
   totalStock: number;
   createdAt: string;
   features: string[] |string;
