@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { Send, MessageCircle, Search, Image, MapPin, X, Check, CheckCheck } from "lucide-react";
+import NextImage from "next/image";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 // Removed unused Card imports
@@ -80,7 +81,7 @@ export default function ChatPage() {
   const dispatch = useAppDispatch();
 
   // Notification functions
-  const addNotification = (message: Message, customerName: string, chatId: string) => {
+  const addNotification = useCallback((message: Message, customerName: string, chatId: string) => {
     const notificationId = Date.now().toString();
     setNotifications(prev => [...prev, {
       id: notificationId,
@@ -93,7 +94,7 @@ export default function ChatPage() {
     setTimeout(() => {
       removeNotification(notificationId);
     }, 10000);
-  };
+  }, []);
 
   const removeNotification = (notificationId: string) => {
     setNotifications(prev => prev.filter(n => n.id !== notificationId));
@@ -136,6 +137,10 @@ export default function ChatPage() {
     }, 0);
     dispatch(setUnreadCount(totalUnread));
   }, [chats, dispatch]);
+
+  const updateChatList = useCallback(async () => {
+    await fetchAdminChats();
+  }, []);
 
   useEffect(() => {
     // Fetch admin chats on component mount
@@ -196,7 +201,7 @@ export default function ChatPage() {
       socket.off("stopTyping");
       socket.off("newMessageNotification");
     };
-  }, [selectedChat, addNotification, chats, user]);
+  }, [selectedChat, addNotification, chats, user, updateChatList]);
 
   const fetchAdminChats = async () => {
     try {
@@ -220,10 +225,6 @@ export default function ChatPage() {
   };
 
   // Removed setMockChats function - no longer using mock data
-
-  const updateChatList = async () => {
-    await fetchAdminChats();
-  };
 
   const selectChat = async (chat: Chat) => {
     setSelectedChat(chat);
@@ -751,9 +752,11 @@ export default function ChatPage() {
                           {/* Message Content based on type */}
                           {isImageMessage(message) ? (
                             <div className="space-y-3">
-                              <img 
+                              <NextImage 
                                 src={getImageUrl(message.imageUrl || extractImageFilename(message.content) || '')} 
                                 alt="Shared image" 
+                                width={400}
+                                height={300}
                                 className="rounded-xl max-w-full h-auto cursor-pointer hover:opacity-90 transition-all duration-200 shadow-md"
                                 onClick={() => window.open(getImageUrl(message.imageUrl || extractImageFilename(message.content) || ''), '_blank')}
                                 onError={(e) => {
@@ -957,9 +960,11 @@ export default function ChatPage() {
           <div className="space-y-4">
             {imagePreview && (
               <div className="relative">
-                <img 
+                <NextImage 
                   src={imagePreview} 
                   alt="Preview" 
+                  width={400}
+                  height={256}
                   className="w-full h-64 object-cover rounded-lg"
                   onError={(e) => {
                     console.warn("Preview image failed to load");

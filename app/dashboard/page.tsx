@@ -172,7 +172,7 @@ export default function Dashboard() {
           createdAt: order.createdAt || new Date().toISOString()
         };
       });
-    }, [orders]);
+    }, [displayOrders]);
 
 
 

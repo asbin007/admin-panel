@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import NextImage from "next/image";
 import {
   ArrowLeft,
   Package,
@@ -496,7 +497,7 @@ function AdminOrderDetail() {
                 {orderDetails.map((item) => (
                   <div key={item.id} className="flex items-center gap-4 p-4 border rounded-lg">
                     <div className="w-16 h-16 bg-gray-100 rounded-lg flex items-center justify-center">
-                      <img
+                      <NextImage
                         src={item.Shoe?.images?.[0]
                           ? `https://res.cloudinary.com/dxpe7jikz/image/upload/v1750340657${
                               item.Shoe.images[0].startsWith("/uploads")
@@ -506,6 +507,8 @@ function AdminOrderDetail() {
                           : '/placeholder-image.svg'
                         }
                         alt={item.Shoe.name}
+                        width={64}
+                        height={64}
                         className="w-full h-full object-cover rounded-lg"
                         onError={(e) => {
                           e.currentTarget.src = '/placeholder-image.svg';

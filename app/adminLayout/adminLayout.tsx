@@ -30,9 +30,8 @@ import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetDescription } from 
 import AdminSearch from "@/components/features/admin-search";
 import { ModeToggle } from "@/components/ui/mode-toogle";
 import { useRouter } from "next/navigation";
-import { useAppDispatch, useAppSelector } from "@/store/hooks";
-import { logout } from "@/store/authSlice";
-import { useEffect, useState } from "react";
+import { useAppSelector } from "@/store/hooks";
+import { useEffect, useState, useCallback } from "react";
 import Cookies from "js-cookie";
 import { socket } from "@/app/app";
 import NotificationToast from "@/components/NotificationToast";
@@ -42,7 +41,6 @@ export default function AdminLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   const router = useRouter();
-  const dispatch = useAppDispatch();
   const { unreadCount } = useAppSelector((store) => store.chat);
   const [isChecking, setIsChecking] = useState(true);
   interface User {
@@ -133,39 +131,8 @@ export default function AdminLayout({
     setIsChecking(false);
   }, [router]);
 
-  // Socket event listeners for notifications
-  useEffect(() => {
-    // Listen for new messages when not on chat page
-    const handleNewMessage = (message: { chatId: string; message: string }) => {
-      // Only show notification if not on chat page
-      if (typeof window !== 'undefined' && !window.location.pathname.includes('/chat')) {
-        addNotification(message.message, "Customer", message.chatId);
-      }
-    };
-
-    const handleNewMessageNotification = ({ chatId, message }: { chatId: string; message: string }) => {
-      // Only show notification if not on chat page
-      if (typeof window !== 'undefined' && !window.location.pathname.includes('/chat')) {
-        addNotification(message, "Customer", chatId);
-      }
-    };
-
-    socket.on("receiveMessage", handleNewMessage);
-    socket.on("newMessageNotification", handleNewMessageNotification);
-
-    return () => {
-      socket.off("receiveMessage", handleNewMessage);
-      socket.off("newMessageNotification", handleNewMessageNotification);
-    };
-  }, []);
-
-  const handleLogout = () => {
-    dispatch(logout());
-    router.push("/user/login");
-  };
-
   // Notification functions
-  const addNotification = (messageContent: string, customerName: string, chatId: string) => {
+  const addNotification = useCallback((messageContent: string, customerName: string, chatId: string) => {
     const notificationId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     const messageObject = {
       id: notificationId,
@@ -191,7 +158,7 @@ export default function AdminLayout({
     setTimeout(() => {
       removeNotification(notificationId);
     }, 10000);
-  };
+  }, []);
 
   const removeNotification = (notificationId: string) => {
     setNotifications(prev => prev.filter(n => n.id !== notificationId));
@@ -200,6 +167,38 @@ export default function AdminLayout({
   const openChatFromNotification = (chatId: string) => {
     router.push(`/chat?chatId=${chatId}`);
   };
+
+  const handleLogout = () => {
+    localStorage.removeItem("userData");
+    localStorage.removeItem("tokenauth");
+    router.push("/user/login");
+  };
+
+  // Socket event listeners for notifications
+  useEffect(() => {
+    // Listen for new messages when not on chat page
+    const handleNewMessage = (message: { chatId: string; message: string }) => {
+      // Only show notification if not on chat page
+      if (typeof window !== 'undefined' && !window.location.pathname.includes('/chat')) {
+        addNotification(message.message, "Customer", message.chatId);
+      }
+    };
+
+    const handleNewMessageNotification = ({ chatId, message }: { chatId: string; message: string }) => {
+      // Only show notification if not on chat page
+      if (typeof window !== 'undefined' && !window.location.pathname.includes('/chat')) {
+        addNotification(message, "Customer", chatId);
+      }
+    };
+
+    socket.on("receiveMessage", handleNewMessage);
+    socket.on("newMessageNotification", handleNewMessageNotification);
+
+    return () => {
+      socket.off("receiveMessage", handleNewMessage);
+      socket.off("newMessageNotification", handleNewMessageNotification);
+    };
+  }, [addNotification]);
 
   if(isChecking){
     return<div className="w-full h-screen flex  justify-center items-center">loading....</div>

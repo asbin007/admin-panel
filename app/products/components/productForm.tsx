@@ -2,6 +2,7 @@
 
 import type React from "react"
 import { useState, useEffect, useCallback } from "react"
+import NextImage from "next/image"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -550,9 +551,11 @@ const AddProductForm: React.FC<AddProductFormProps> = ({ closeModal }) => {
                       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
                         {imagePreviews.map((preview, index) => (
                           <div key={index} className="relative group">
-                            <img
+                            <NextImage
                               src={preview}
                               alt={`Preview ${index + 1}`}
+                              width={150}
+                              height={128}
                               className="w-full h-32 object-cover rounded-lg border-2 border-border"
                             />
                             <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center gap-2">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, Suspense, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { 
   Mail, 
@@ -28,17 +28,7 @@ function EmailVerificationContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  useEffect(() => {
-    // Check if token is in URL (for email link verification)
-    const token = searchParams.get('token');
-    const emailParam = searchParams.get('email');
-    
-    if (token && emailParam) {
-      handleEmailLinkVerification(token, emailParam);
-    }
-  }, [searchParams]);
-
-  const handleEmailLinkVerification = async (token: string, email: string) => {
+  const handleEmailLinkVerification = useCallback(async (token: string, email: string) => {
     setIsLoading(true);
     setError("");
     
@@ -61,7 +51,17 @@ function EmailVerificationContent() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [router]);
+
+  useEffect(() => {
+    // Check if token is in URL (for email link verification)
+    const token = searchParams.get('token');
+    const emailParam = searchParams.get('email');
+    
+    if (token && emailParam) {
+      handleEmailLinkVerification(token, emailParam);
+    }
+  }, [searchParams, handleEmailLinkVerification]);
 
   const handleResendOtp = async () => {
     if (!email) {

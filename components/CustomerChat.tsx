@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { Send, MessageCircle, X, Minimize2, Maximize2, Image, MapPin, Check, CheckCheck } from "lucide-react";
+import NextImage from "next/image";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 // Removed unused Card, Badge, Avatar imports
@@ -80,6 +81,84 @@ export default function CustomerChat({ isOpen, onToggle, onClose }: CustomerChat
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
+  const createNewChat = useCallback(async () => {
+    try {
+      // First get available admins
+      const adminResponse = await fetch("http://localhost:5001/api/chats/admins", {
+        headers: {
+          Authorization: localStorage.getItem("tokenauth") || "",
+        },
+      });
+      
+      if (adminResponse.ok) {
+        const adminData = await adminResponse.json();
+        const admins = adminData.data || [];
+        
+        if (admins.length === 0) {
+          alert("No admin users available. Please try again later.");
+          return;
+        }
+        
+        // Use the first available admin
+        const admin = admins[0];
+        
+        // Create new chat with the admin
+        const chatResponse = await fetch("http://localhost:5001/api/chats", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: localStorage.getItem("tokenauth") || "",
+          },
+          body: JSON.stringify({
+            adminId: admin.id,
+          }),
+        });
+        
+        if (chatResponse.ok) {
+          const chatData = await chatResponse.json();
+          const newChat = chatData.data;
+          setChat(newChat);
+          await loadChatMessages(newChat.id);
+        } else {
+          alert("Unable to create chat. Please try again later.");
+        }
+      } else {
+        alert("Unable to get admin users. Please try again later.");
+      }
+    } catch (error) {
+      console.error("Error creating chat:", error);
+      alert("Unable to start chat at the moment. Please try again later.");
+    }
+  }, []);
+
+  const initializeCustomerChat = useCallback(async () => {
+    try {
+      // First try to get existing chat
+      const response = await fetch("http://localhost:5001/api/chat/all", {
+        headers: {
+          Authorization: localStorage.getItem("tokenauth") || "",
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const chats = data.data || [];
+        
+        if (chats.length > 0) {
+          // Use the first existing chat
+          const existingChat = chats[0];
+          setChat(existingChat);
+          await loadChatMessages(existingChat.id);
+        } else {
+          // Create new chat if none exists
+          await createNewChat();
+        }
+      }
+    } catch (error) {
+      console.error("Error initializing chat:", error);
+    }
+  }, [createNewChat]);
+
   // Load user from localStorage
   useEffect(() => {
     const userData = localStorage.getItem("userData");
@@ -120,82 +199,7 @@ export default function CustomerChat({ isOpen, onToggle, onClose }: CustomerChat
       socket.off("typing");
       socket.off("stopTyping");
     };
-  }, []);
-
-  const initializeCustomerChat = async () => {
-    try {
-      // First try to get existing chat
-      const response = await fetch("http://localhost:5001/api/chat/all", {
-        headers: {
-          Authorization: localStorage.getItem("tokenauth") || "",
-        },
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        if (data.data && data.data.length > 0) {
-          const existingChat = data.data[0];
-          setChat(existingChat);
-          await loadChatMessages(existingChat.id);
-        } else {
-          // Create new chat if none exists
-          await createNewChat();
-        }
-      }
-    } catch (error) {
-      console.error("Error initializing chat:", error);
-    }
-  };
-
-  const createNewChat = async () => {
-    try {
-      // First get available admins
-      const adminResponse = await fetch("http://localhost:5001/api/chats/admins", {
-        headers: {
-          Authorization: localStorage.getItem("tokenauth") || "",
-        },
-      });
-      
-      if (adminResponse.ok) {
-        const adminData = await adminResponse.json();
-        const admins = adminData.data || [];
-        
-        if (admins.length === 0) {
-          alert("No admin users available. Please try again later.");
-          return;
-        }
-        
-        // Use the first available admin
-        const adminId = admins[0].id;
-        
-        const response = await fetch("http://localhost:5001/api/chats/get-or-create", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: localStorage.getItem("tokenauth") || "",
-          },
-          body: JSON.stringify({ 
-            adminId: adminId
-          }),
-        });
-        
-        if (response.ok) {
-          const data = await response.json();
-          setChat(data.chat);
-          await loadChatMessages(data.chat.id);
-        } else {
-          const errorData = await response.json();
-          console.error("Chat creation failed:", errorData);
-          alert("Unable to start chat at the moment. Please try again later.");
-        }
-      } else {
-        alert("Unable to get admin users. Please try again later.");
-      }
-    } catch (error) {
-      console.error("Error creating chat:", error);
-      alert("Unable to start chat at the moment. Please try again later.");
-    }
-  };
+  }, [chat, initializeCustomerChat, user?.id]);
 
   const loadChatMessages = async (chatId: string) => {
     try {
@@ -257,7 +261,7 @@ export default function CustomerChat({ isOpen, onToggle, onClose }: CustomerChat
       socket.off("typing");
       socket.off("stopTyping");
     };
-  }, []);
+  }, [chat, initializeCustomerChat, user]);
 
   const sendMessage = async () => {
     if (!newMessage.trim() || !chat) return;
@@ -533,9 +537,11 @@ export default function CustomerChat({ isOpen, onToggle, onClose }: CustomerChat
                         {/* Message Content based on type */}
                         {message.type === 'image' && message.imageUrl ? (
                           <div className="space-y-2">
-                            <img 
+                            <NextImage 
                               src={message.imageUrl} 
                               alt="Shared image" 
+                              width={400}
+                              height={300}
                               className="rounded-xl max-w-full h-auto cursor-pointer hover:opacity-90 transition-all duration-200 shadow-md"
                               onClick={() => window.open(message.imageUrl, '_blank')}
                             />
@@ -703,9 +709,11 @@ export default function CustomerChat({ isOpen, onToggle, onClose }: CustomerChat
           <div className="space-y-4">
             {imagePreview && (
               <div className="relative">
-                <img 
+                <NextImage 
                   src={imagePreview} 
                   alt="Preview" 
+                  width={400}
+                  height={256}
                   className="w-full h-64 object-cover rounded-lg"
                 />
                 <Button
