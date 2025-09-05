@@ -28,11 +28,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-<<<<<<< HEAD
-=======
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
->>>>>>> c87a35df740d77136a7ed783a720acf25df9db87
 import AdminLayout from "@/app/adminLayout/adminLayout";
 import OrderStatusManager from "@/components/OrderStatusManager";
 
@@ -50,7 +47,6 @@ function AdminOrderDetail() {
     }
   }, [id, dispatch]);
 
-<<<<<<< HEAD
   // Sync local state with order details
   useEffect(() => {
     if (orderDetails.length > 0) {
@@ -115,7 +111,6 @@ function AdminOrderDetail() {
     }
   }, [id, dispatch]);
 
-=======
   // WebSocket real-time updates
   useEffect(() => {
     if (socket && socket.connected) {
@@ -155,7 +150,6 @@ function AdminOrderDetail() {
       };
     }
   }, [id, dispatch]);
->>>>>>> c87a35df740d77136a7ed783a720acf25df9db87
 
 
   const handleOrderStatusChange = async (value: string) => {
@@ -202,7 +196,6 @@ function AdminOrderDetail() {
         const result = await dispatch(updateOrderStatus(id, value as OrderStatus, adminUserId)) as { success: boolean; error?: string; method?: string };
         
         if (result.success) {
-<<<<<<< HEAD
           console.log(`✅ Order status updated successfully via ${result.method || 'API'}`);
           // Update local state immediately
           setLocalOrderStatus(value);
@@ -213,17 +206,6 @@ function AdminOrderDetail() {
           // Only show error if it's not a WebSocket timeout
           console.error('❌ Failed to update order status:', result.error);
           return { success: false, error: result.error || 'Unknown error' };
-=======
-          console.log('✅ Order status updated successfully via API');
-          // Refresh order details to show updated status
-          dispatch(fetchAdminOrderDetails(id));
-          // Also refresh the main orders list for dashboard updates
-          dispatch(fetchOrders());
-          // Show success message
-          toast.success('Order status updated successfully!', {
-            description: `Status changed from ${currentOrderStatus} to ${value}`,
-            duration: 3000,
-          });
         } else {
           console.error('❌ Failed to update order status:', result.error);
           // Show more specific error message
@@ -241,21 +223,12 @@ function AdminOrderDetail() {
               duration: 4000,
             });
           }
->>>>>>> c87a35df740d77136a7ed783a720acf25df9db87
         }
         
         return { success: true }; // WebSocket timeout is handled silently
       } catch (error) {
         console.error('❌ Error updating order status:', error);
-<<<<<<< HEAD
         return { success: false, error: 'Failed to update order status. Please try again.' };
-=======
-        toast.error('Failed to update order status', {
-          description: 'Please try again',
-          duration: 4000,
-        });
-        setIsUpdating(false);
->>>>>>> c87a35df740d77136a7ed783a720acf25df9db87
       }
     }
     return { success: false, error: 'Invalid order ID or no order details' };
@@ -308,7 +281,6 @@ function AdminOrderDetail() {
         const result = await dispatch(updatePaymentStatus(id, paymentId, value as PaymentStatus, adminUserId)) as { success: boolean; error?: string; method?: string };
         
         if (result.success) {
-<<<<<<< HEAD
           console.log(`✅ Payment status updated successfully via ${result.method || 'API'}`);
           // Update local state immediately
           setLocalPaymentStatus(value);
@@ -319,15 +291,6 @@ function AdminOrderDetail() {
           // Only show error if it's not a WebSocket timeout
           console.error('❌ Failed to update payment status:', result.error);
           return { success: false, error: result.error || 'Unknown error' };
-=======
-          console.log('✅ Payment status updated successfully via API');
-          // Refresh order details to show updated status
-          dispatch(fetchAdminOrderDetails(id));
-          // Show success message
-          toast.success('Payment status updated successfully!', {
-            description: `Status changed from ${currentPaymentStatus} to ${value}`,
-            duration: 3000,
-          });
         } else {
           console.error('❌ Failed to update payment status:', result.error);
           // Show more specific error message
@@ -344,21 +307,12 @@ function AdminOrderDetail() {
               duration: 4000,
             });
           }
->>>>>>> c87a35df740d77136a7ed783a720acf25df9db87
         }
         
         return { success: true }; // WebSocket timeout is handled silently
       } catch (error) {
         console.error('❌ Error updating payment status:', error);
-<<<<<<< HEAD
         return { success: false, error: 'Failed to update payment status. Please try again.' };
-=======
-        toast.error('Failed to update payment status', {
-          description: 'Please try again',
-          duration: 4000,
-        });
-        setIsUpdating(false);
->>>>>>> c87a35df740d77136a7ed783a720acf25df9db87
       }
     }
     return { success: false, error: 'Invalid order ID or no order details' };
@@ -645,7 +599,6 @@ function AdminOrderDetail() {
               </CardContent>
             </Card>
 
-<<<<<<< HEAD
             {/* Order Status Management */}
             <OrderStatusManager
               orderId={id as string}
@@ -656,38 +609,6 @@ function AdminOrderDetail() {
               onRefresh={() => dispatch(fetchAdminOrderDetails(id as string))}
               isAdmin={true}
             />
-=======
-            {/* Order Management */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Truck className="h-5 w-5" />
-                  Order Management
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-4">
-                  <label className="text-sm font-medium">Payment Status Management</label>
-                  
-                  {/* Payment Status Toggle */}
-                  <div className="flex items-center justify-between p-4 border rounded-lg bg-muted/50">
-                    <div className="flex items-center gap-3">
-                      <CreditCard className="h-5 w-5 text-muted-foreground" />
-                      <div>
-                        <p className="font-medium">Payment Status</p>
-                        <p className="text-sm text-muted-foreground">
-                          {order.Order.Payment.paymentStatus === 'paid' ? 'Payment completed' : 'Payment pending'}
-                        </p>
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center gap-3">
-                      <Badge variant={order.Order.Payment.paymentStatus === 'paid' ? 'default' : 'secondary'}>
-                        {order.Order.Payment.paymentStatus === 'paid' ? 'Paid' : 'Unpaid'}
-                      </Badge>
-                      
-                      <Switch
-                        checked={order.Order.Payment.paymentStatus === 'paid'}
                         onCheckedChange={(checked) => {
                           handlePaymentStatusChange(checked ? 'paid' : 'unpaid');
                         }}
@@ -920,7 +841,6 @@ function AdminOrderDetail() {
                 </div>
               </CardContent>
             </Card>
->>>>>>> c87a35df740d77136a7ed783a720acf25df9db87
           </div>
         </div>
       </div>

@@ -98,11 +98,6 @@ export default function SettingsPage() {
       await new Promise(resolve => setTimeout(resolve, 1000));
 
       // Update user data in localStorage
-<<<<<<< HEAD
-      const updatedUser = { ...user, ...profileForm };
-      localStorage.setItem("userData", JSON.stringify(updatedUser));
-      setUser(updatedUser as User);
-=======
       if (user) {
         const updatedUser: User = { 
           ...user, 
@@ -113,7 +108,6 @@ export default function SettingsPage() {
         localStorage.setItem("userData", JSON.stringify(updatedUser));
         setUser(updatedUser);
       }
->>>>>>> c87a35df740d77136a7ed783a720acf25df9db87
 
       toast.success("Profile updated successfully");
       

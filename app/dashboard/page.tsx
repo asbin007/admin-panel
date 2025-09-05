@@ -55,7 +55,6 @@ export default function Dashboard() {
     if (displayOrders.length === 0) {
       console.log('🔍 Debug - No orders found, returning zero stats');
       return {
-<<<<<<< HEAD
         totalRevenue: 0,
         totalOrders: 0,
         pendingOrders: 0,
@@ -91,14 +90,12 @@ export default function Dashboard() {
     }).length;
 
     console.log('🔍 Debug - Calculated stats:', {
-=======
-    totalRevenue: 0,
-    totalOrders: 0,
-    pendingOrders: 0,
-    completedOrders: 0,
-    cancelledOrders: 0,
-      };
-    }
+      totalRevenue,
+      totalOrders,
+      pendingOrders,
+      completedOrders,
+      cancelledOrders,
+    });
 
     // Debug: Log order statuses
     console.log('📊 Dashboard Stats Debug:');
@@ -146,12 +143,10 @@ export default function Dashboard() {
     })));
 
     console.log('📈 Calculated stats:', {
->>>>>>> c87a35df740d77136a7ed783a720acf25df9db87
       totalRevenue,
       totalOrders,
       pendingOrders,
       completedOrders,
-<<<<<<< HEAD
       cancelledOrders,
     });
 
@@ -161,17 +156,14 @@ export default function Dashboard() {
       pendingOrders,
       completedOrders,
       cancelledOrders,
-=======
-      cancelledOrders
     });
 
     return {
-        totalRevenue,
-        totalOrders,
-        pendingOrders,
-        completedOrders,
-        cancelledOrders,
->>>>>>> c87a35df740d77136a7ed783a720acf25df9db87
+      totalRevenue,
+      totalOrders,
+      pendingOrders,
+      completedOrders,
+      cancelledOrders,
     };
   }, [displayOrders]);
 
@@ -201,7 +193,6 @@ export default function Dashboard() {
           fullName = `${order.Order.firstName} ${order.Order.lastName}`;
           phone = order.Order.phoneNumber || `#${order.id.slice(-6)}`;
         }
-<<<<<<< HEAD
         // Method 2: Check if order has Order object with just firstName
         else if (order.Order && order.Order.firstName) {
           fullName = order.Order.firstName;

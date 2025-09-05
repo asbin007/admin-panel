@@ -158,7 +158,6 @@ export function fetchOrders() {
       if (response && (response.status === 200 || response.status === 201)) {
         dispatch(setStatus(Status.SUCCESS));
         dispatch(setItems(response.data.data || response.data || []));
->>>>>>> c87a35df740d77136a7ed783a720acf25df9db87
       } else {
         console.error('🔍 Debug - API returned non-success status:', response.status);
         dispatch(setStatus(Status.ERROR));
@@ -242,18 +241,11 @@ export function updateOrderStatus(orderId: string, status: string, userId: strin
           });
           
           if (errorString.includes('User is not online') || errorString.includes('not online')) {
-<<<<<<< HEAD
             console.log('🔄 User not online, falling back to API update');
             resolve({ success: false, error: 'User not online', fallback: true });
           } else if (errorString.includes('timeout') || errorString.includes('Timeout')) {
             console.log('⏰ WebSocket timeout, falling back to API update');
             resolve({ success: false, error: 'WebSocket timeout', fallback: true });
-=======
-            console.log('🔄 User not online, but update will be saved via WebSocket');
-            // Refresh order details and resolve as success
-            dispatch(fetchAdminOrderDetails(orderId));
-            resolve({ success: true, error: 'User not online, but update will be saved', method: 'websocket-fallback' });
->>>>>>> c87a35df740d77136a7ed783a720acf25df9db87
           } else {
             resolve({ success: false, error: errorString || 'WebSocket error', fallback: true });
           }
@@ -279,13 +271,7 @@ export function updateOrderStatus(orderId: string, status: string, userId: strin
     // Fallback to API update
     console.log('🌐 WebSocket not available, using API update');
     try {
-<<<<<<< HEAD
       console.log('📤 Sending order status update:', { orderId, status });
-      // Try different parameter structures
-      const response = await APIS.patch(`/order/admin/change-status/${orderId}?status=${status}`, { 
-        status: status 
-      });
-=======
       // Try multiple endpoints
       let response;
       try {
@@ -299,7 +285,6 @@ export function updateOrderStatus(orderId: string, status: string, userId: strin
           response = await APIS.patch(`/admin/order/update/${orderId}`, { status });
         }
       }
->>>>>>> c87a35df740d77136a7ed783a720acf25df9db87
       
       if (response && (response.status === 200 || response.status === 201)) {
         console.log('✅ Order status updated via API');
@@ -437,12 +422,6 @@ export function updatePaymentStatus(orderId: string, paymentId: string, status: 
     // Fallback to API update
     console.log('🌐 WebSocket not available, using API update');
     try {
-<<<<<<< HEAD
-      const response = await APIS.patch(`/order/admin/change-payment-status/${paymentId}`, { 
-        paymentId: paymentId,
-        status: status 
-      });
-=======
       // Try multiple endpoints
       let response;
       try {
@@ -456,7 +435,6 @@ export function updatePaymentStatus(orderId: string, paymentId: string, status: 
           response = await APIS.patch(`/admin/payment/update/${paymentId}`, { status });
         }
       }
->>>>>>> c87a35df740d77136a7ed783a720acf25df9db87
       
       if (response && (response.status === 200 || response.status === 201)) {
         console.log('✅ Payment status updated via API');

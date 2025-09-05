@@ -19,7 +19,6 @@ export const socket = io("https://nike-backend-1-g9i6.onrender.com", {
   auth: {
     token: typeof window !== 'undefined' ? localStorage.getItem("tokenauth") : null
   }
->>>>>>> c87a35df740d77136a7ed783a720acf25df9db87
 });
 
 // Make socket available globally
@@ -96,7 +95,6 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
           // Connect with auth token
           socket.connect();
           
-<<<<<<< HEAD
           // Add authentication event listener
           socket.on('authenticated', (data: { userId: string }) => {
             console.log('✅ Admin authenticated via WebSocket:', data);
@@ -112,19 +110,13 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
             setIsWebSocketEnabled(false);
           });
           
-=======
->>>>>>> c87a35df740d77136a7ed783a720acf25df9db87
           // Set a timeout to check if connection is successful
           connectionCheckTimeout = setTimeout(() => {
             if (!socket.connected) {
               setConnectionStatus('error');
-<<<<<<< HEAD
               setIsWebSocketEnabled(false);
               console.warn('WebSocket connection timeout - server might not be running');
               console.warn('💡 Falling back to API-only mode');
-=======
-              console.warn('WebSocket connection timeout');
->>>>>>> c87a35df740d77136a7ed783a720acf25df9db87
             }
           }, 5000);
         } else if (!token) {
@@ -142,9 +134,8 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
       }
     };
 
-<<<<<<< HEAD
     socket.on('connect', () => {
-      console.log('✅ WebSocket connected successfully to:', SOCKET_URL);
+      console.log('✅ WebSocket connected successfully to:', "https://nike-backend-1-g9i6.onrender.com");
       console.log('🔌 Socket ID:', socket.id);
       console.log('🔌 Transport:', (socket.io as { engine?: { transport?: { name?: string } } }).engine?.transport?.name || 'unknown');
       setConnectionStatus('connected');
@@ -168,8 +159,6 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
         adminId: token ? 'authenticated' : 'anonymous'
       });
     });
-=======
->>>>>>> c87a35df740d77136a7ed783a720acf25df9db87
     
     socket.on('connect_error', (error: unknown) => {
       console.error('❌ WebSocket connection error:', error);
