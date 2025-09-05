@@ -7,16 +7,20 @@ import io from 'socket.io-client';
 import { useEffect, useState } from 'react';
 
 // Create socket instance with better configuration
-export const socket = io("https://nike-backend-1-g9i6.onrender.com", { // Backend port
-  autoConnect: false,
-  transports: ['websocket', 'polling'], // Try WebSocket first, then polling
-  timeout: 10000, // 10 second timeout
-  forceNew: true,
-  reconnection: true,
-  reconnectionAttempts: 5,
-  reconnectionDelay: 1000,
-  reconnectionDelayMax: 5000,
+const SOCKET_URL = "https://nike-backend-1-g9i6.onrender.com";
 
+export const socket = io(SOCKET_URL, {
+  autoConnect: false,
+  transports: ['websocket'], // Only use websocket, no polling
+  timeout: 5000, // 5 second timeout
+  forceNew: false,
+  reconnection: false, // Disable reconnection to prevent repeated errors
+  upgrade: false, // Disable upgrade
+  rememberUpgrade: false,
+  // withCredentials: true,
+  // Add additional options for better error handling
+  rejectUnauthorized: false,
+  secure: process.env.NODE_ENV === 'production',
 });
 
 // Make socket available globally
@@ -35,18 +39,58 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
       setIsWebSocketEnabled(false);
       return;
     }
+
+    // Check if WebSocket was previously disabled due to errors
+    const webSocketDisabled = localStorage.getItem('websocket_disabled');
+    if (webSocketDisabled === 'true') {
+      console.log('WebSocket previously disabled due to errors - using API-only mode');
+      setIsWebSocketEnabled(false);
+      setConnectionStatus('disconnected');
+      return;
+    }
     
     let reconnectTimeout: NodeJS.Timeout;
     let connectionCheckTimeout: NodeJS.Timeout;
     
-    const setupSocket = () => {
+    const testConnection = async () => {
+      try {
+        // Test if the server is reachable by making a simple HTTP request
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 3000);
+        
+        const response = await fetch(`${SOCKET_URL}/api/health`, {
+          method: 'GET',
+          signal: controller.signal,
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        });
+        
+        clearTimeout(timeoutId);
+        return response.ok || response.status === 401; // 401 means server is up but needs auth
+      } catch (error) {
+        console.log('Server health check failed:', error);
+        return false;
+      }
+    };
+
+    const setupSocket = async () => {
       try {
         const token = typeof window !== 'undefined' ? 
           localStorage.getItem("tokenauth") || 
           document.cookie.split('; ').find(row => row.startsWith('tokenauth='))?.split('=')[1] : 
           null;
         
-        if (token && !socket.connected) {
+        if (token && !socket.connected && isWebSocketEnabled) {
+          // Test server availability first
+          const serverAvailable = await testConnection();
+          if (!serverAvailable) {
+            console.warn('🌐 Server not available - disabling WebSocket');
+            setIsWebSocketEnabled(false);
+            setConnectionStatus('disconnected');
+            return;
+          }
+
           setConnectionStatus('connecting');
           console.log('🔐 Connecting with token:', token.substring(0, 20) + '...');
           
@@ -66,28 +110,37 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
           socket.on('unauthorized', (error: unknown) => {
             console.error('❌ Admin WebSocket authentication failed:', error);
             setConnectionStatus('error');
+            setIsWebSocketEnabled(false);
           });
           
           // Set a timeout to check if connection is successful
           connectionCheckTimeout = setTimeout(() => {
             if (!socket.connected) {
               setConnectionStatus('error');
+              setIsWebSocketEnabled(false);
               console.warn('WebSocket connection timeout - server might not be running');
+              console.warn('💡 Falling back to API-only mode');
             }
           }, 5000);
         } else if (!token) {
           console.log('No authentication token found - WebSocket disabled');
           setIsWebSocketEnabled(false);
           setConnectionStatus('disconnected');
+        } else if (!isWebSocketEnabled) {
+          console.log('WebSocket disabled due to previous errors - using API fallback');
+          setConnectionStatus('disconnected');
         }
       } catch (error) {
         console.error('Error setting up WebSocket:', error);
         setConnectionStatus('error');
+        setIsWebSocketEnabled(false);
       }
     };
 
     socket.on('connect', () => {
-      console.log('✅ WebSocket connected successfully to port 5001');
+      console.log('✅ WebSocket connected successfully to:', SOCKET_URL);
+      console.log('🔌 Socket ID:', socket.id);
+      console.log('🔌 Transport:', (socket.io as { engine?: { transport?: { name?: string } } }).engine?.transport?.name || 'unknown');
       setConnectionStatus('connected');
       setIsWebSocketEnabled(true);
       
@@ -100,7 +153,14 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
       }
       
       // Emit a test event to verify connection
-      socket.emit('adminConnected', { timestamp: Date.now() });
+      const token = typeof window !== 'undefined' ? 
+        localStorage.getItem("tokenauth") || 
+        document.cookie.split('; ').find(row => row.startsWith('tokenauth='))?.split('=')[1] : 
+        null;
+      socket.emit('adminConnected', { 
+        timestamp: Date.now(),
+        adminId: token ? 'authenticated' : 'anonymous'
+      });
     });
     
     socket.on('connect_error', (error: unknown) => {
@@ -112,14 +172,18 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
         clearTimeout(connectionCheckTimeout);
       }
       
-      if (error && typeof error === 'object' && 'message' in error) {
-        const errorMessage = String(error.message);
+              if (error && typeof error === 'object' && 'message' in error) {
+          const errorMessage = String((error as { message: string }).message);
         
         // Handle specific error types
-        if (errorMessage.includes('xhr poll error') || errorMessage.includes('Network Error')) {
-          console.warn('🌐 Network error - WebSocket server might not be running on port 5001');
+        if (errorMessage.includes('xhr poll error') || errorMessage.includes('Network Error') || errorMessage.includes('websocket error') || errorMessage.includes('poll error')) {
+          console.warn('🌐 Network error - WebSocket server might not be running');
           console.warn('💡 Make sure your backend server is running and has WebSocket support');
-          setConnectionStatus('error');
+          console.warn('💡 Falling back to API-only mode');
+          setIsWebSocketEnabled(false);
+          setConnectionStatus('disconnected');
+          // Disable WebSocket permanently for this session
+          localStorage.setItem('websocket_disabled', 'true');
           return;
         }
         
@@ -136,12 +200,13 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
           if (!socket.connected) {
             reconnectTimeout = setTimeout(() => {
               setupSocket();
-            }, 3000);
+            }, 5000);
           }
         }
       }
       
-
+      // Disable WebSocket after multiple failures
+      setIsWebSocketEnabled(false);
     });
     
     socket.on('disconnect', (reason: string) => {
@@ -175,6 +240,16 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
     
     // Initial setup
     setupSocket();
+
+    // Add a way to re-enable WebSocket (for debugging)
+    if (typeof window !== 'undefined') {
+      (window as unknown as { enableWebSocket: () => void }).enableWebSocket = () => {
+        localStorage.removeItem('websocket_disabled');
+        setIsWebSocketEnabled(true);
+        setConnectionStatus('disconnected');
+        setupSocket();
+      };
+    }
 
     return () => {
       socket.off('connect');

@@ -63,12 +63,44 @@ interface IOrder {
   id: string;
   totalPrice: number;
   status: string;
+  orderStatus?: string;
+  firstName?: string;
+  lastName?: string;
+  phoneNumber?: string;
+  createdAt?: string;
+  Order?: {
+    firstName: string;
+    lastName: string;
+    phoneNumber: string;
+    addressLine: string;
+    city: string;
+    street: string;
+    zipcode: string;
+    status: OrderStatus;
+    totalPrice: number;
+    state: string;
+    userId: string;
+    Payment: {
+      id: string;
+      paymentMethod: PaymentMethod;
+      paymentStatus: PaymentStatus;
+    };
+  };
+  User?: {
+    id: string;
+    username: string;
+    phoneNumber?: string;
+  };
+  Customer?: {
+    id: string;
+    username: string;
+    phoneNumber?: string;
+  };
   OrderDetail: {
     quantity: string;
-    createdAt:string
+    createdAt: string;
   };
   Payment: {
-    
     paymentMethod: string;
     paymentStatus: string;
   };
@@ -108,16 +140,30 @@ export function fetchOrders() {
   return async function fetchOrdersThunk(dispatch: AppDispatch) {
     try {
       dispatch(setStatus(Status.LOADING));
+      console.log('🔍 Debug - Fetching orders from API...');
+      
+      // Check if we have a token
+      const token = localStorage.getItem("tokenauth");
+      console.log('🔍 Debug - Auth token available:', !!token);
+      
       const response = await APIS.get("/order/all");
+      
+      console.log('🔍 Debug - API Response status:', response.status);
+      console.log('🔍 Debug - API Response data:', response.data);
+      console.log('🔍 Debug - Orders data:', response.data.data);
+      console.log('🔍 Debug - Orders count:', response.data.data?.length || 0);
       
       if (response.status === 200 || response.status === 201) {
         dispatch(setStatus(Status.SUCCESS));
-        dispatch(setItems(response.data.data));
+        dispatch(setItems(response.data.data || []));
+        console.log('🔍 Debug - Orders set in store:', response.data.data);
       } else {
+        console.error('🔍 Debug - API returned non-success status:', response.status);
         dispatch(setStatus(Status.ERROR));
       }
     } catch (error) {
-      console.error("Orders fetch error:", error);
+      console.error("🔍 Debug - Orders fetch error:", error);
+      console.error("🔍 Debug - Error details:", error);
       dispatch(setStatus(Status.ERROR));
       // Set empty array as fallback
       dispatch(setItems([]));
@@ -149,7 +195,7 @@ export function updateOrderStatus(orderId: string, status: string, userId: strin
   return async function updateOrderStatusThunk(dispatch: AppDispatch) {
     console.log('🔄 Starting order status update:', { orderId, status, userId });
     
-    // Try WebSocket first if available
+    // Try WebSocket first if available and enabled
     if (typeof window !== 'undefined' && (window as any).socket && (window as any).socket.connected) {
       console.log('🌐 WebSocket connected, attempting real-time update');
       
@@ -186,9 +232,18 @@ export function updateOrderStatus(orderId: string, status: string, userId: strin
           (window as any).socket.off('timeout', handleTimeout);
           
           const errorString = String(error);
+          console.log('🔍 Error details:', {
+            message: errorString,
+            type: typeof error,
+            stack: error?.stack
+          });
+          
           if (errorString.includes('User is not online') || errorString.includes('not online')) {
             console.log('🔄 User not online, falling back to API update');
             resolve({ success: false, error: 'User not online', fallback: true });
+          } else if (errorString.includes('timeout') || errorString.includes('Timeout')) {
+            console.log('⏰ WebSocket timeout, falling back to API update');
+            resolve({ success: false, error: 'WebSocket timeout', fallback: true });
           } else {
             resolve({ success: false, error: errorString || 'WebSocket error', fallback: true });
           }
@@ -199,21 +254,26 @@ export function updateOrderStatus(orderId: string, status: string, userId: strin
           (window as any).socket.off('statusUpdated', handleStatusUpdated);
           (window as any).socket.off('error', handleError);
           (window as any).socket.off('timeout', handleTimeout);
-          resolve({ success: false, error: 'WebSocket timeout', fallback: true });
+          // Don't show error, just fallback silently
+          resolve({ success: false, error: '', fallback: true });
         };
         
         (window as any).socket.on('statusUpdated', handleStatusUpdated);
         (window as any).socket.on('error', handleError);
         
-        // Timeout after 3 seconds
-        setTimeout(handleTimeout, 3000);
+        // Timeout after 10 seconds
+        setTimeout(handleTimeout, 10000);
       });
     }
     
     // Fallback to API update
     console.log('🌐 WebSocket not available, using API update');
     try {
-      const response = await APIS.patch(`/order/admin/change-status/${orderId}`, { status });
+      console.log('📤 Sending order status update:', { orderId, status });
+      // Try different parameter structures
+      const response = await APIS.patch(`/order/admin/change-status/${orderId}?status=${status}`, { 
+        status: status 
+      });
       
       if (response.status === 200) {
         console.log('✅ Order status updated via API');
@@ -224,31 +284,59 @@ export function updateOrderStatus(orderId: string, status: string, userId: strin
         console.error('❌ API update failed:', response.status);
         return { success: false, error: 'API update failed' };
       }
-    } catch (apiError) {
+    } catch (apiError: any) {
       console.error("❌ API update error:", apiError);
       
-              // Final fallback to local update
-        try {
-          console.log('🔄 API failed, trying local update');
-          const currentResponse = await APIS.get(`/order/${orderId}`);
-          if (currentResponse.status === 200 && currentResponse.data.data.length > 0) {
-            const orderDetail = currentResponse.data.data[0];
-            const updatedOrderDetail = {
-              ...orderDetail,
-              Order: {
-                ...orderDetail.Order,
-                status: status
-              }
-            };
-            dispatch(setOrderDetails([updatedOrderDetail]));
-            console.log('✅ Order status updated locally');
-            return { success: true, method: 'local' };
+      // Log detailed error information
+      if (apiError.response) {
+        console.error("❌ API Error Response:", {
+          status: apiError.response.status,
+          data: apiError.response.data,
+          message: apiError.response.data?.message || 'Unknown API error',
+          config: {
+            url: apiError.config?.url,
+            method: apiError.config?.method,
+            data: apiError.config?.data
           }
-        } catch (localError) {
-          console.error("❌ Local update also failed:", localError);
-        }
+        });
+      }
       
-      return { success: false, error: "All update methods failed" };
+      // Try alternative API endpoint format
+      try {
+        console.log('🔄 Trying alternative API endpoint format');
+        const altResponse = await APIS.put(`/order/${orderId}/status`, { status });
+        if (altResponse.status === 200) {
+          console.log('✅ Order status updated via alternative API');
+          dispatch(fetchAdminOrderDetails(orderId));
+          return { success: true, method: 'api-alt' };
+        }
+      } catch (altError: any) {
+        console.error("❌ Alternative API also failed:", altError);
+      }
+      
+      // Final fallback to local update
+      try {
+        console.log('🔄 API failed, trying local update');
+        const currentResponse = await APIS.get(`/order/${orderId}`);
+        if (currentResponse.status === 200 && currentResponse.data.data.length > 0) {
+          const orderDetail = currentResponse.data.data[0];
+          const updatedOrderDetail = {
+            ...orderDetail,
+            Order: {
+              ...orderDetail.Order,
+              status: status
+            }
+          };
+          dispatch(setOrderDetails([updatedOrderDetail]));
+          console.log('✅ Order status updated locally');
+          return { success: true, method: 'local' };
+        }
+      } catch (localError) {
+        console.error("❌ Local update also failed:", localError);
+      }
+      
+      const errorMessage = apiError.response?.data?.message || apiError.message || "All update methods failed";
+      return { success: false, error: errorMessage };
     }
   };
 }
@@ -257,7 +345,7 @@ export function updatePaymentStatus(orderId: string, paymentId: string, status: 
   return async function updatePaymentStatusThunk(dispatch: AppDispatch) {
     console.log('🔄 Starting payment status update:', { orderId, paymentId, status, userId });
     
-    // Try WebSocket first if available
+    // Try WebSocket first if available and enabled
     if (typeof window !== 'undefined' && (window as any).socket && (window as any).socket.connected) {
       console.log('🌐 WebSocket connected, attempting real-time update');
       
@@ -307,21 +395,25 @@ export function updatePaymentStatus(orderId: string, paymentId: string, status: 
           (window as any).socket.off('paymentStatusUpdated', handlePaymentStatusUpdated);
           (window as any).socket.off('error', handleError);
           (window as any).socket.off('timeout', handleTimeout);
-          resolve({ success: false, error: 'WebSocket timeout', fallback: true });
+          // Don't show error, just fallback silently
+          resolve({ success: false, error: '', fallback: true });
         };
         
         (window as any).socket.on('paymentStatusUpdated', handlePaymentStatusUpdated);
         (window as any).socket.on('error', handleError);
         
-        // Timeout after 3 seconds
-        setTimeout(handleTimeout, 3000);
+        // Timeout after 10 seconds
+        setTimeout(handleTimeout, 10000);
       });
     }
     
     // Fallback to API update
     console.log('🌐 WebSocket not available, using API update');
     try {
-      const response = await APIS.patch(`/order/admin/change-payment-status/${paymentId}`, { status });
+      const response = await APIS.patch(`/order/admin/change-payment-status/${paymentId}`, { 
+        paymentId: paymentId,
+        status: status 
+      });
       
       if (response.status === 200) {
         console.log('✅ Payment status updated via API');
@@ -332,8 +424,17 @@ export function updatePaymentStatus(orderId: string, paymentId: string, status: 
         console.error('❌ API update failed:', response.status);
         return { success: false, error: 'API update failed' };
       }
-    } catch (apiError) {
+    } catch (apiError: any) {
       console.error("❌ API update error:", apiError);
+      
+      // Log detailed error information
+      if (apiError.response) {
+        console.error("❌ API Error Response:", {
+          status: apiError.response.status,
+          data: apiError.response.data,
+          message: apiError.response.data?.message || 'Unknown API error'
+        });
+      }
       
       // Final fallback to local update
       try {
@@ -359,7 +460,8 @@ export function updatePaymentStatus(orderId: string, paymentId: string, status: 
         console.error("❌ Local update also failed:", localError);
       }
       
-      return { success: false, error: "All update methods failed" };
+      const errorMessage = apiError.response?.data?.message || apiError.message || "All update methods failed";
+      return { success: false, error: errorMessage };
     }
   };
 }

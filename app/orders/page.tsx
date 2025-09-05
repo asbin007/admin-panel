@@ -236,8 +236,8 @@ export default function Orders() {
                 [...items]
                 .sort(
                   (a, b) =>
-                    new Date(b.OrderDetail.createdAt).getTime() -
-                    new Date(a.OrderDetail.createdAt).getTime()
+                    new Date(b.createdAt || 0).getTime() -
+                    new Date(a.createdAt || 0).getTime()
                 )
                   .map((order, index) => (
                   <TableRow key={`${order.id}-${index}`}>
@@ -246,11 +246,11 @@ export default function Orders() {
                         #{order.id}
                       </Link>
                     </TableCell>
-                    <TableCell>{order.OrderDetail?.quantity || 0} items</TableCell>
+                    <TableCell>1 item</TableCell>
                     <TableCell>
                       {order.Payment?.paymentMethod ? paymentMethodMap[order.Payment.paymentMethod as PaymentMethod] || "Unknown" : "Unknown"}
                     </TableCell>
-                    <TableCell>{getStatusBadge(order.status)}</TableCell>
+                    <TableCell>{getStatusBadge(order.orderStatus || order.status)}</TableCell>
                     <TableCell>{getPaymentStatus(order.Payment?.paymentStatus)}</TableCell>
                     <TableCell className="text-right">
                       Rs {order.totalPrice.toFixed(2)}

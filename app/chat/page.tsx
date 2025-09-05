@@ -209,89 +209,17 @@ export default function ChatPage() {
         setChats(response.data.data || []);
       } else {
         console.error("Error fetching admin chats:", response.status);
-        // Use mock data if API fails
-        setMockChats();
+        // Set empty array if API fails instead of mock data
+        setChats([]);
       }
     } catch (error) {
       console.error("Error fetching chats:", error);
-      // Use mock data if network error
-      setMockChats();
+      // Set empty array if network error instead of mock data
+      setChats([]);
     }
   };
 
-  const setMockChats = () => {
-    const mockChats: Chat[] = [
-      {
-        id: "1",
-        customerId: "customer1",
-        adminId: user?.[0]?.id || "admin1",
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        Customer: {
-          id: "customer1",
-          username: "John Doe",
-          email: "john@example.com"
-        },
-        Admin: {
-          id: user?.[0]?.id || "admin1",
-          username: user?.[0]?.username || "Admin",
-          email: user?.[0]?.email || "admin@shoemart.com"
-        },
-        Messages: [
-          {
-            id: "msg1",
-            content: "Hello, I need help with my order",
-            senderId: "customer1",
-            receiverId: user?.[0]?.id || "admin1",
-            chatId: "1",
-            createdAt: new Date(Date.now() - 3600000).toISOString(),
-            read: true
-          },
-          {
-            id: "msg2",
-            content: "Hi! I'd be happy to help. What's your order number?",
-            senderId: user?.[0]?.id || "admin1",
-            receiverId: "customer1",
-            chatId: "1",
-            createdAt: new Date(Date.now() - 1800000).toISOString(),
-            read: true
-          }
-        ],
-        unreadCount: 0
-      },
-      {
-        id: "2",
-        customerId: "customer2",
-        adminId: user?.[0]?.id || "admin1",
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        Customer: {
-          id: "customer2",
-          username: "Jane Smith",
-          email: "jane@example.com"
-        },
-        Admin: {
-          id: user?.[0]?.id || "admin1",
-          username: user?.[0]?.username || "Admin",
-          email: user?.[0]?.email || "admin@shoemart.com"
-        },
-        Messages: [
-          {
-            id: "msg3",
-            content: "When will my shoes arrive?",
-            senderId: "customer2",
-            receiverId: user?.[0]?.id || "admin1",
-            chatId: "2",
-            createdAt: new Date(Date.now() - 7200000).toISOString(),
-            read: false
-          }
-        ],
-        unreadCount: 1
-      }
-    ];
-    
-    setChats(mockChats);
-  };
+  // Removed setMockChats function - no longer using mock data
 
   const updateChatList = async () => {
     await fetchAdminChats();
@@ -333,18 +261,16 @@ export default function ChatPage() {
         ));
       } else {
         console.error("Error fetching messages:", response.status);
-        // Use mock messages if API fails
-        const mockMessages = chat.Messages || [];
-        setMessages(mockMessages);
+        // Set empty messages if API fails
+        setMessages([]);
         setChats(prev => prev.map(c => 
           c.id === chat.id ? { ...c, unreadCount: 0 } : c
         ));
       }
     } catch (error) {
       console.error("Error fetching messages:", error);
-      // Use mock messages if network error
-      const mockMessages = chat.Messages || [];
-      setMessages(mockMessages);
+      // Set empty messages if network error
+      setMessages([]);
       setChats(prev => prev.map(c => 
         c.id === chat.id ? { ...c, unreadCount: 0 } : c
       ));
@@ -394,61 +320,11 @@ export default function ChatPage() {
         });
       } else {
         console.error("Error sending message:", response.status);
-        
-        // Create mock message if API fails
-        const mockMessage: Message = {
-          id: Date.now().toString(),
-          content: newMessage.trim(),
-          senderId: user?.[0]?.id || "admin",
-          receiverId: selectedChat.Customer?.id || "customer",
-          chatId: selectedChat.id,
-          createdAt: new Date().toISOString(),
-          read: false,
-          Sender: {
-            id: user?.[0]?.id || "admin",
-            username: user?.[0]?.username || "Admin",
-            role: "admin"
-          }
-        };
-        
-        // Add message to local state
-        setMessages(prev => [...prev, mockMessage]);
-        
-        // Update chat's last message
-        setChats(prev => prev.map(chat => 
-          chat.id === selectedChat.id 
-            ? { ...chat, Messages: [...(chat.Messages || []), mockMessage], updatedAt: new Date().toISOString() }
-            : chat
-        ));
+        alert("Failed to send message. Please try again.");
       }
     } catch (error) {
       console.error("Error sending message:", error);
-      
-      // Create mock message if network error
-      const mockMessage: Message = {
-        id: Date.now().toString(),
-        content: newMessage.trim(),
-        senderId: user?.[0]?.id || "admin",
-        receiverId: selectedChat.Customer?.id || "customer",
-        chatId: selectedChat.id,
-        createdAt: new Date().toISOString(),
-        read: false,
-        Sender: {
-          id: user?.[0]?.id || "admin",
-          username: user?.[0]?.username || "Admin",
-          role: "admin"
-        }
-      };
-      
-      // Add message to local state
-      setMessages(prev => [...prev, mockMessage]);
-      
-      // Update chat's last message
-      setChats(prev => prev.map(chat => 
-        chat.id === selectedChat.id 
-          ? { ...chat, Messages: [...(chat.Messages || []), mockMessage], updatedAt: new Date().toISOString() }
-          : chat
-      ));
+      alert("Failed to send message. Please try again.");
     }
     
     setNewMessage("");

@@ -16,6 +16,11 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  experimental: {
+    optimizePackageImports: ['@radix-ui/react-icons'],
+  },
+  // Suppress hydration warnings for browser extensions
+  reactStrictMode: true,
 };
 
 export default nextConfig;

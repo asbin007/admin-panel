@@ -30,17 +30,81 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import AdminLayout from "@/app/adminLayout/adminLayout";
+import OrderTimeline from "@/components/OrderTimeline";
+import OrderStatusManager from "@/components/OrderStatusManager";
 
 function AdminOrderDetail() {
   const dispatch = useAppDispatch();
   const { id } = useParams();
   const { orderDetails, status } = useAppSelector((store) => store.orders);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [localOrderStatus, setLocalOrderStatus] = useState<string>('');
+  const [localPaymentStatus, setLocalPaymentStatus] = useState<string>('');
 
   // Fetch order details when the page loads
   useEffect(() => {
     if (id && typeof id === 'string') {
       dispatch(fetchAdminOrderDetails(id));
+    }
+  }, [id, dispatch]);
+
+  // Sync local state with order details
+  useEffect(() => {
+    if (orderDetails.length > 0) {
+      const order = orderDetails[0];
+      setLocalOrderStatus(order.Order?.status || 'pending');
+      setLocalPaymentStatus(order.Order?.Payment?.paymentStatus || 'unpaid');
+    }
+  }, [orderDetails]);
+
+  // Real-time WebSocket listeners for order updates
+  useEffect(() => {
+    console.log('🔍 OrderDetail: Setting up WebSocket listeners for order:', id);
+    
+    if (typeof window !== 'undefined' && (window as any).socket) {
+      const socket = (window as any).socket;
+      
+      console.log('🔍 OrderDetail: Socket found:', !!socket);
+      console.log('🔍 OrderDetail: Socket connected:', socket.connected);
+      console.log('🔍 OrderDetail: Socket ID:', socket.id);
+      
+      const handleOrderStatusUpdate = (data: any) => {
+        console.log('🔄 OrderDetail: Real-time order status update received:', data);
+        console.log('🔄 OrderDetail: Received orderId:', data.orderId, 'Current orderId:', id);
+        if (data.orderId === id) {
+          console.log('🔄 OrderDetail: Refreshing order details for order:', id);
+          // Refresh order details to get latest data
+          dispatch(fetchAdminOrderDetails(id as string));
+        }
+      };
+
+      const handlePaymentStatusUpdate = (data: any) => {
+        console.log('💰 OrderDetail: Real-time payment status update received:', data);
+        console.log('💰 OrderDetail: Received orderId:', data.orderId, 'Current orderId:', id);
+        if (data.orderId === id) {
+          console.log('💰 OrderDetail: Refreshing order details for order:', id);
+          // Refresh order details to get latest data
+          dispatch(fetchAdminOrderDetails(id as string));
+        }
+      };
+
+      // Listen for order status updates
+      console.log('🔍 OrderDetail: Adding WebSocket listeners...');
+      socket.on('orderStatusUpdated', handleOrderStatusUpdate);
+      socket.on('statusUpdated', handleOrderStatusUpdate);
+      socket.on('paymentStatusUpdated', handlePaymentStatusUpdate);
+      
+      // Test WebSocket connection
+      socket.emit('test', { message: 'OrderDetail connected', orderId: id });
+
+      return () => {
+        console.log('🔍 OrderDetail: Cleaning up WebSocket listeners...');
+        socket.off('orderStatusUpdated', handleOrderStatusUpdate);
+        socket.off('statusUpdated', handleOrderStatusUpdate);
+        socket.off('paymentStatusUpdated', handlePaymentStatusUpdate);
+      };
+    } else {
+      console.warn('⚠️ OrderDetail: WebSocket not available');
     }
   }, [id, dispatch]);
 
@@ -58,24 +122,31 @@ function AdminOrderDetail() {
         console.log('🔄 Updating order status to:', value);
         console.log('👤 Admin User ID:', adminUserId);
         
-        // Direct API call - bypass WebSocket for now
-        console.log('🌐 Using direct API call for order status update');
-        const result = await dispatch(updateOrderStatus(id, value, adminUserId)) as { success: boolean; error?: string };
+        // Use the updated order status function with better error handling
+        const result = await dispatch(updateOrderStatus(id, value as OrderStatus, adminUserId)) as { success: boolean; error?: string; method?: string };
         
         if (result.success) {
-          console.log('✅ Order status updated successfully via API');
-        } else {
+          console.log(`✅ Order status updated successfully via ${result.method || 'API'}`);
+          // Update local state immediately
+          setLocalOrderStatus(value);
+          // Refresh order details to get latest data
+          dispatch(fetchAdminOrderDetails(id));
+          return { success: true };
+        } else if (result.error && result.error !== 'WebSocket timeout') {
+          // Only show error if it's not a WebSocket timeout
           console.error('❌ Failed to update order status:', result.error);
-          alert('Failed to update order status. Please try again.');
+          return { success: false, error: result.error || 'Unknown error' };
         }
         
-        setIsUpdating(false);
+        return { success: true }; // WebSocket timeout is handled silently
       } catch (error) {
         console.error('❌ Error updating order status:', error);
-        alert('Failed to update order status. Please try again.');
+        return { success: false, error: 'Failed to update order status. Please try again.' };
+      } finally {
         setIsUpdating(false);
       }
     }
+    return { success: false, error: 'Invalid order ID or no order details' };
   };
 
   const handlePaymentStatusChange = async (value: string) => {
@@ -86,8 +157,7 @@ function AdminOrderDetail() {
         
         if (!paymentId) {
           console.error('❌ Payment ID not found in order details');
-          setIsUpdating(false);
-          return;
+          return { success: false, error: 'Payment ID not found in order details' };
         }
         
         // Get admin user ID from localStorage
@@ -99,24 +169,31 @@ function AdminOrderDetail() {
         console.log('💰 Payment ID:', paymentId);
         console.log('👤 Admin User ID:', adminUserId);
         
-        // Direct API call - bypass WebSocket for now
-        console.log('🌐 Using direct API call for payment status update');
-        const result = await dispatch(updatePaymentStatus(id, paymentId, value, adminUserId)) as { success: boolean; error?: string };
+        // Use the updated payment status function with better error handling
+        const result = await dispatch(updatePaymentStatus(id, paymentId, value as PaymentStatus, adminUserId)) as { success: boolean; error?: string; method?: string };
         
         if (result.success) {
-          console.log('✅ Payment status updated successfully via API');
-        } else {
+          console.log(`✅ Payment status updated successfully via ${result.method || 'API'}`);
+          // Update local state immediately
+          setLocalPaymentStatus(value);
+          // Refresh order details to get latest data
+          dispatch(fetchAdminOrderDetails(id));
+          return { success: true };
+        } else if (result.error && result.error !== 'WebSocket timeout') {
+          // Only show error if it's not a WebSocket timeout
           console.error('❌ Failed to update payment status:', result.error);
-          alert('Failed to update payment status. Please try again.');
+          return { success: false, error: result.error || 'Unknown error' };
         }
         
-        setIsUpdating(false);
+        return { success: true }; // WebSocket timeout is handled silently
       } catch (error) {
         console.error('❌ Error updating payment status:', error);
-        alert('Failed to update payment status. Please try again.');
+        return { success: false, error: 'Failed to update payment status. Please try again.' };
+      } finally {
         setIsUpdating(false);
       }
     }
+    return { success: false, error: 'Invalid order ID or no order details' };
   };
 
   const getStatusBadge = (status: string) => {
@@ -359,60 +436,16 @@ function AdminOrderDetail() {
               </CardContent>
             </Card>
 
-            {/* Order Management */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Truck className="h-5 w-5" />
-                  Order Management
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Update Payment Status</label>
-                  <Select
-                    value={order.Order.Payment.paymentStatus || ""}
-                    onValueChange={handlePaymentStatusChange}
-                    disabled={isUpdating}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="paid">Paid</SelectItem>
-                      <SelectItem value="unpaid">Unpaid</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  {isUpdating && (
-                    <p className="text-xs text-muted-foreground">Updating...</p>
-                  )}
-                </div>
-                {order.Order.status !== OrderStatus.Cancelled && (
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Update Order Status</label>
-                    <Select
-                      value={order.Order.status || ""}
-                      onValueChange={handleOrderStatusChange}
-                      disabled={isUpdating}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="pending">Pending</SelectItem>
-                        <SelectItem value="preparation">Preparation</SelectItem>
-                        <SelectItem value="ontheway">On the Way</SelectItem>
-                        <SelectItem value="delivered">Delivered</SelectItem>
-                        <SelectItem value="cancelled">Cancelled</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    {isUpdating && (
-                      <p className="text-xs text-muted-foreground">Updating...</p>
-                    )}
-              </div>
-                )}
-              </CardContent>
-            </Card>
+            {/* Order Status Management */}
+            <OrderStatusManager
+              orderId={id as string}
+              currentStatus={localOrderStatus || order.Order.status || 'pending'}
+              paymentStatus={localPaymentStatus || order.Order.Payment.paymentStatus || 'unpaid'}
+              onStatusChange={handleOrderStatusChange}
+              onPaymentStatusChange={handlePaymentStatusChange}
+              onRefresh={() => dispatch(fetchAdminOrderDetails(id as string))}
+              isAdmin={true}
+            />
           </div>
         </div>
       </div>

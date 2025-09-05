@@ -24,14 +24,50 @@ import { AppProviders } from "./app";
   }: Readonly<{
     children: React.ReactNode;
   }>) {
-    return (
-      <html lang="en" suppressHydrationWarning={true}>
-        <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
-                      <AppProviders>
-              {children}
-            </AppProviders>
-        </body>
-      </html>
-    );
+      return (
+    <html lang="en" suppressHydrationWarning={true}>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              // Prevent hydration mismatches from browser extensions
+              (function() {
+                if (typeof window !== 'undefined') {
+                  // Remove attributes added by browser extensions
+                  const observer = new MutationObserver(function(mutations) {
+                    mutations.forEach(function(mutation) {
+                      if (mutation.type === 'attributes') {
+                        const target = mutation.target;
+                        if (target && target.hasAttribute && target.hasAttribute('bis_skin_checked')) {
+                          target.removeAttribute('bis_skin_checked');
+                        }
+                      }
+                    });
+                  });
+                  
+                  // Start observing when DOM is ready
+                  if (document.readyState === 'loading') {
+                    document.addEventListener('DOMContentLoaded', function() {
+                      observer.observe(document.body, { attributes: true, subtree: true });
+                    });
+                  } else {
+                    observer.observe(document.body, { attributes: true, subtree: true });
+                  }
+                }
+              })();
+            `,
+          }}
+        />
+      </head>
+      <body
+        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        suppressHydrationWarning={true}
+      >
+        <AppProviders>
+          {children}
+        </AppProviders>
+      </body>
+    </html>
+  );
   }
 // hey
