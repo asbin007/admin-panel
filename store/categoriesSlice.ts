@@ -73,29 +73,45 @@ export function addCategory(categoryName: string) {
 export function fetchCategoryItems() {
     return async function fetchCategoryItemsThunk(dispatch: AppDispatch) {
         try {
-            // Try multiple endpoints
-            let response;
-            try {
-                response = await API.get("/categories");
-            } catch (firstError) {
-                console.log("Trying /category endpoint...");
-                try {
-                    response = await API.get("/category");
-                } catch (secondError) {
-                    console.log("Trying /admin/categories endpoint...");
-                    response = await API.get("/admin/categories");
-                }
-            }
+            console.log("Fetching categories from /category endpoint...");
+            const response = await APIS.get("/category");
+            
+            console.log("Categories response:", response.status, response.data);
             
             if (response && (response.status === 200 || response.status === 201)) {
-                dispatch(setItems(response.data.data || response.data || []));
+                const categories = response.data.data || response.data || [];
+                console.log("Categories data:", categories);
+                dispatch(setItems(categories));
                 dispatch(setStatus(Status.SUCCESS));
             } else {
+                console.log("Categories response not successful:", response);
                 dispatch(setStatus(Status.ERROR));
                 dispatch(setItems([]));
             }
-        } catch (error) {
-            console.log("Categories fetch error:", error);
+        } catch (error: any) {
+            console.error("Categories fetch error:", error);
+            console.error("Error details:", {
+                message: error.message,
+                status: error.response?.status,
+                data: error.response?.data
+            });
+            
+            // If 404, try alternative endpoint
+            if (error.response?.status === 404) {
+                try {
+                    console.log("Trying /categories endpoint...");
+                    const response = await APIS.get("/categories");
+                    if (response && (response.status === 200 || response.status === 201)) {
+                        const categories = response.data.data || response.data || [];
+                        dispatch(setItems(categories));
+                        dispatch(setStatus(Status.SUCCESS));
+                        return;
+                    }
+                } catch (secondError) {
+                    console.error("Second attempt failed:", secondError);
+                }
+            }
+            
             dispatch(setStatus(Status.ERROR));
             dispatch(setItems([]));
         }

@@ -414,7 +414,11 @@ export default function ProductDetailsPage() {
               Update the product information below.
             </DialogDescription>
           </DialogHeader>
-          <ProductForm closeModal={closeModal} />
+          <ProductForm 
+            closeModal={closeModal} 
+            product={product} 
+            isEdit={true} 
+          />
         </DialogContent>
       </Dialog>
     </div>

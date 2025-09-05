@@ -1,6 +1,6 @@
 "use client";
 
-import { MoreHorizontal } from "lucide-react";
+import { MoreHorizontal, Trash2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -25,21 +25,48 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/dialog";
 import AdminLayout from "../adminLayout/adminLayout";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { deleteUserById, fetchUsers } from "@/store/authSlice";
+import toast from "react-hot-toast";
 
 export default function UserTable() {
   const { user: users } = useAppSelector((store) => store.auth);
   const dispatch = useAppDispatch();
+  const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
 
   useEffect(() => {
     dispatch(fetchUsers());
   }, [dispatch]);
 
-  const deleteUser = (id: string) => {
-    dispatch(deleteUserById(id));
+  const handleDeleteUser = async (id: string, username: string) => {
+    try {
+      setDeletingUserId(id);
+      
+      // Show success toast immediately
+      toast.success(`User "${username}" deleted successfully!`);
+      
+      // Dispatch the delete action
+      await dispatch(deleteUserById(id));
+      
+    } catch (error) {
+      console.error("Error deleting user:", error);
+      toast.error("Failed to delete user. Please try again.");
+    } finally {
+      setDeletingUserId(null);
+    }
   };
 
   return (
@@ -90,9 +117,38 @@ export default function UserTable() {
                       <DropdownMenuContent align="end">
                         <DropdownMenuLabel>Actions</DropdownMenuLabel>
                         <DropdownMenuItem>Edit</DropdownMenuItem>
-                        <button onClick={() => user.id && deleteUser(user.id)}>
-                          <DropdownMenuItem>Delete</DropdownMenuItem>
-                        </button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <DropdownMenuItem 
+                              className="text-destructive focus:text-destructive"
+                              disabled={deletingUserId === user.id}
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              {deletingUserId === user.id ? "Deleting..." : "Delete"}
+                            </DropdownMenuItem>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle className="flex items-center gap-2">
+                                <AlertCircle className="h-5 w-5 text-destructive" />
+                                Delete User
+                              </AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Are you sure you want to delete user <strong>"{user.username}"</strong>? 
+                                This action cannot be undone and will permanently remove the user from the system.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => user.id && handleDeleteUser(user.id, user.username || "Unknown")}
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                              >
+                                Delete User
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>

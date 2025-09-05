@@ -132,8 +132,17 @@ const AddProductForm: React.FC<AddProductFormProps> = ({ closeModal }) => {
     (files: FileList | File[]) => {
       const fileArray = Array.from(files)
       const validFiles = fileArray.filter((file) => {
-        if (!file.type.startsWith("image/")) {
-          toast.error(`${file.name} is not an image file`)
+        // Check for image types including AVIF
+        const isValidImageType = file.type.startsWith("image/") || 
+                                file.name.toLowerCase().endsWith('.avif') ||
+                                file.name.toLowerCase().endsWith('.webp') ||
+                                file.name.toLowerCase().endsWith('.jpeg') ||
+                                file.name.toLowerCase().endsWith('.jpg') ||
+                                file.name.toLowerCase().endsWith('.png') ||
+                                file.name.toLowerCase().endsWith('.gif')
+        
+        if (!isValidImageType) {
+          toast.error(`${file.name} is not a supported image file. Supported formats: JPG, PNG, GIF, WebP, AVIF`)
           return false
         }
         if (file.size > 5 * 1024 * 1024) {
@@ -295,7 +304,7 @@ const AddProductForm: React.FC<AddProductFormProps> = ({ closeModal }) => {
             </div>
           </CardHeader>
 
-          <CardContent className="p-4 sm:p-6 lg:p-8 overflow-y-auto max-h-[calc(90vh-120px)]">
+          <CardContent className="p-4 sm:p-6 lg:p-8">
             <form onSubmit={handleSubmit}>
               <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
                 <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 bg-muted p-1 rounded-lg">
@@ -514,13 +523,13 @@ const AddProductForm: React.FC<AddProductFormProps> = ({ closeModal }) => {
                       <p className="text-muted-foreground">
                         {formData.images.length >= 6
                           ? "You can upload up to 6 images maximum"
-                          : "Supports: JPG, PNG, WebP (Max 5MB each)"}
+                          : "Supports: JPG, PNG, GIF, WebP, AVIF (Max 5MB each)"}
                       </p>
                       <input
                         id="image-upload"
                         type="file"
                         multiple
-                        accept="image/*"
+                        accept="image/*,.avif,.webp"
                         className="hidden"
                         onChange={(e) => {
                           if (e.target.files) {
@@ -815,7 +824,7 @@ const AddProductForm: React.FC<AddProductFormProps> = ({ closeModal }) => {
               </Tabs>
 
               {/* Form Actions */}
-              <div className="flex gap-4 pt-8 border-t border-border sticky bottom-0 bg-background">
+              <div className="flex gap-4 pt-8 border-t border-border">
                 <Button
                   type="button"
                   variant="outline"

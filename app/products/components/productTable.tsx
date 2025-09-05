@@ -44,19 +44,15 @@ import {
 } from "@/components/ui/dialog";
 import ProductForm from "./productForm";
 
-// Base64 encoded transparent placeholder
-const PLACEHOLDER_IMAGE = `data:image/svg+xml;base64,${btoa(
-  `<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-    <circle cx="8.5" cy="8.5" r="1.5"></circle>
-    <polyline points="21 15 16 10 5 21"></polyline>
-  </svg>`
-)}`;
+// Simple placeholder image
+const PLACEHOLDER_IMAGE = "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjQiIGhlaWdodD0iNjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3QgeD0iMyIgeT0iMyIgd2lkdGg9IjE4IiBoZWlnaHQ9IjE4IiByeD0iMiIgcnk9IjIiLz4KPGNpcmNsZSBjeD0iOC41IiBjeT0iOC41IiByPSIxLjUiLz4KPHBvbHlsaW5lIHBvaW50cz0iMjEgMTUgMTYgMTAgNSAyMSIvPgo8L3N2Zz4K";
+
+// Cloudinary configuration
+const CLOUDINARY_VERSION = "v1750340657";
 
 export function ProductTable({ products = [] }: { products?: IProduct[] }) {
   const dispatch = useAppDispatch();
   const router = useRouter();
-  const CLOUDINARY_VERSION = "v1750340657";
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
@@ -121,12 +117,18 @@ export function ProductTable({ products = [] }: { products?: IProduct[] }) {
       .filter((product) => product?.id)
       .map((product) => {
         const imageUrl = product?.images?.[0]
-          ? `https://res.cloudinary.com/dxpe7jikz/image/upload/${CLOUDINARY_VERSION}${
+          ? `https://res.cloudinary.com/dxpe7jikz/image/upload/${CLOUDINARY_VERSION}/${
               product.images[0].startsWith("/uploads")
                 ? product.images[0].replace("/uploads", "")
                 : product.images[0]
             }.jpg`
           : PLACEHOLDER_IMAGE;
+
+        // Debug: Log image URL construction
+        console.log(`Product ${product.name} image:`, {
+          original: product?.images?.[0],
+          constructed: imageUrl
+        });
 
         return (
           <TableRow key={product.id}>

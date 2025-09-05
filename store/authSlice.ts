@@ -128,16 +128,41 @@ export function fetchUsers() {
 export function deleteUserById(id: string) {
   return async function deleteUserByIdThunk(dispatch: AppDispatch) {
     try {
+      console.log("Deleting user with ID:", id);
+      
+      // Optimistically update UI first
+      dispatch(deleteUser(id));
+      dispatch(setStatus(Status.SUCCESS));
+      
       const response = await APIS.delete("/auth/users/" + id);
-      if (response.status === 200) {
-        dispatch(setStatus(Status.SUCCESS));
-        dispatch(deleteUser(id));
+      
+      console.log("Delete response:", response.status, response.data);
+      
+      if (response.status === 200 || response.status === 204) {
+        // User already removed from UI, just return success
+        return response.data;
       } else {
+        // If API fails, we need to revert the optimistic update
         dispatch(setStatus(Status.ERROR));
+        throw new Error(response.data?.message || "Failed to delete user");
       }
-    } catch (error) {
-      console.log(error);
+    } catch (error: any) {
+      console.error("Error deleting user:", error);
+      console.error("Error details:", {
+        message: error.message,
+        status: error.response?.status,
+        data: error.response?.data,
+        config: {
+          url: error.config?.url,
+          method: error.config?.method,
+          headers: error.config?.headers
+        }
+      });
+      
       dispatch(setStatus(Status.ERROR));
+      throw new Error(
+        error.response?.data?.message || error.message || "Failed to delete user"
+      );
     }
   };
 }

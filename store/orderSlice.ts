@@ -141,19 +141,7 @@ export function fetchOrders() {
     try {
       dispatch(setStatus(Status.LOADING));
 
-      // Try multiple endpoints
-      let response;
-      try {
-        response = await APIS.get("/orders");
-      } catch (firstError) {
-        console.log("Trying /order/all endpoint...");
-        try {
-          response = await APIS.get("/order/all");
-        } catch (secondError) {
-          console.log("Trying /admin/orders endpoint...");
-          response = await APIS.get("/admin/orders");
-        }
-      }
+      const response = await APIS.get("/order/all");
       
       if (response && (response.status === 200 || response.status === 201)) {
         dispatch(setStatus(Status.SUCCESS));
@@ -196,7 +184,7 @@ export function fetchAdminOrderDetails(id: string) {
 export function updateOrderStatus(orderId: string, status: string, userId: string) {
   return async function updateOrderStatusThunk(dispatch: AppDispatch) {
     console.log('🔄 Starting order status update:', { orderId, status, userId });
-    
+     and 
     // Try WebSocket first if available and enabled
     if (typeof window !== 'undefined' && (window as any).socket && (window as any).socket.connected) {
       console.log('🌐 WebSocket connected, attempting real-time update');

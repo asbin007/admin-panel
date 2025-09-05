@@ -6,18 +6,14 @@ import { ProductTable } from "./components/productTable";
 
 export default function Page() {
   const dispatch = useAppDispatch();
-  const { products, status } = useAppSelector((store) => store.adminProducts);
+  const { products } = useAppSelector((store) => store.adminProducts);
 
   useEffect(() => {
     dispatch(fetchProducts());
   }, [dispatch]);
 
-  // Refresh products when status changes to SUCCESS (after adding a product)
-  useEffect(() => {
-    if (status === 'success') {
-      dispatch(fetchProducts());
-    }
-  }, [status, dispatch]);
+  // Remove this useEffect as it causes infinite loop
+  // Products are already refreshed in the slice after successful operations
 
   return (
     <div className="min-h-screen bg-background">

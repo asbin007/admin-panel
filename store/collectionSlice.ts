@@ -1,6 +1,6 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 import { AppDispatch } from "./store";
-import { API } from "../globals/http";
+import { APIS } from "../globals/http";
 import { Status } from "./authSlice";
 
 interface ICollection {
@@ -38,29 +38,45 @@ export default categorySlice.reducer;
 export function fetchCollection() {
   return async function fetchCollectionThunk(dispatch: AppDispatch) {
     try {
-      // Try multiple endpoints
-      let response;
-      try {
-        response = await API.get("/collections");
-      } catch (firstError) {
-        console.log("Trying /collection endpoint...");
-        try {
-          response = await API.get("/collection");
-        } catch (secondError) {
-          console.log("Trying /admin/collections endpoint...");
-          response = await API.get("/admin/collections");
-        }
-      }
+      console.log("Fetching collections from /collection endpoint...");
+      const response = await APIS.get("/collection");
+      
+      console.log("Collections response:", response.status, response.data);
       
       if (response && (response.status === 200 || response.status === 201)) {
-        dispatch(setItems(response.data.data || response.data || []));
+        const collections = response.data.data || response.data || [];
+        console.log("Collections data:", collections);
+        dispatch(setItems(collections));
         dispatch(setStatus(Status.SUCCESS));
       } else {
+        console.log("Collections response not successful:", response);
         dispatch(setStatus(Status.ERROR));
         dispatch(setItems([]));
       }
-    } catch (error) {
-      console.log("Collection fetch error:", error);
+    } catch (error: any) {
+      console.error("Collection fetch error:", error);
+      console.error("Error details:", {
+        message: error.message,
+        status: error.response?.status,
+        data: error.response?.data
+      });
+      
+      // If 404, try alternative endpoint
+      if (error.response?.status === 404) {
+        try {
+          console.log("Trying /collections endpoint...");
+          const response = await APIS.get("/collections");
+          if (response && (response.status === 200 || response.status === 201)) {
+            const collections = response.data.data || response.data || [];
+            dispatch(setItems(collections));
+            dispatch(setStatus(Status.SUCCESS));
+            return;
+          }
+        } catch (secondError) {
+          console.error("Second attempt failed:", secondError);
+        }
+      }
+      
       dispatch(setStatus(Status.ERROR));
       dispatch(setItems([]));
     }
