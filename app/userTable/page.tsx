@@ -35,7 +35,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@/components/ui/dialog";
+} from "@/components/ui/alert-dialog";
 import AdminLayout from "../adminLayout/adminLayout";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { useEffect, useState } from "react";
@@ -134,7 +134,7 @@ export default function UserTable() {
                                 Delete User
                               </AlertDialogTitle>
                               <AlertDialogDescription>
-                                Are you sure you want to delete user <strong>"{user.username}"</strong>? 
+                                Are you sure you want to delete user <strong>&quot;{user.username}&quot;</strong>? 
                                 This action cannot be undone and will permanently remove the user from the system.
                               </AlertDialogDescription>
                             </AlertDialogHeader>

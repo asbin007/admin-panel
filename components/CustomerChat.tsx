@@ -120,7 +120,7 @@ export default function CustomerChat({ isOpen, onToggle, onClose }: CustomerChat
       socket.off("typing");
       socket.off("stopTyping");
     };
-  }, []);
+  }, [chat, initializeCustomerChat, user?.id]);
 
   const initializeCustomerChat = async () => {
     try {
@@ -257,7 +257,7 @@ export default function CustomerChat({ isOpen, onToggle, onClose }: CustomerChat
       socket.off("typing");
       socket.off("stopTyping");
     };
-  }, [initializeCustomerChat]);
+  }, [initializeCustomerChat, chat, user]);
 
   const sendMessage = async () => {
     if (!newMessage.trim() || !chat) return;

@@ -196,7 +196,7 @@ export default function ChatPage() {
       socket.off("stopTyping");
       socket.off("newMessageNotification");
     };
-  }, [selectedChat, addNotification, chats, user]);
+  }, [selectedChat, addNotification, chats, user, updateChatList]);
 
   const fetchAdminChats = async () => {
     try {

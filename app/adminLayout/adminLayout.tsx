@@ -157,7 +157,7 @@ export default function AdminLayout({
       socket.off("receiveMessage", handleNewMessage);
       socket.off("newMessageNotification", handleNewMessageNotification);
     };
-  }, []);
+  }, [addNotification]);
 
   const handleLogout = () => {
     dispatch(logout());

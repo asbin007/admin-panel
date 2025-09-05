@@ -104,7 +104,7 @@ export default function Dashboard() {
       completedOrders,
       cancelledOrders,
     };
-  }, [displayOrders]);
+  }, [displayOrders, recentOrders]);
 
   // Memoized recent orders data
   const recentOrders = useMemo(() => {
