@@ -1,9 +1,7 @@
 "use client";
 
 import {
-  CircleUser,
   DollarSign,
-  Search,
   ShoppingCart,
   CheckCircle,
   Clock,
@@ -13,10 +11,8 @@ import {
   Package,
   Users,
   Settings,
-  Eye,
   ArrowRight,
   ShoppingBag,
-  UserCheck,
   Star,
   MessageSquare,
 } from "lucide-react";
@@ -29,22 +25,13 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import AdminLayout from "../adminLayout/adminLayout";
 import { useAppSelector } from "@/store/hooks";
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { fetchOrders } from "@/store/orderSlice";
 import { fetchProducts } from "@/store/productSlice";
 import { useAppDispatch } from "@/store/hooks";
-import { Download, X, RefreshCw, Wifi, WifiOff } from "lucide-react";
+import { Download } from "lucide-react";
 import ClientOnly from "@/components/ClientOnly";
 import Link from "next/link";
 
@@ -53,18 +40,6 @@ export default function Dashboard() {
   const { items: orders, status } = useAppSelector((store) => store.orders);
   const { products } = useAppSelector((store) => store.adminProducts);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [isSearchFocused, setIsSearchFocused] = useState(false);
-  const [isWebSocketConnected, setIsWebSocketConnected] = useState(false);
-  const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [realTimeStats, setRealTimeStats] = useState({
-    totalRevenue: 0,
-    totalOrders: 0,
-    pendingOrders: 0,
-    completedOrders: 0,
-    cancelledOrders: 0,
-  });
 
   // Debug: Log orders from Redux store
   console.log('🔍 Debug - Orders from Redux store:', orders);
@@ -220,58 +195,7 @@ export default function Dashboard() {
       }));
   }, [products]);
 
-  // Memoized filtered orders for search
-  const filteredOrders = useMemo(() => {
-    if (!searchTerm) return recentOrders;
-    
-    const searchLower = searchTerm.toLowerCase();
-    return recentOrders.filter(order => {
-      const { fullName, status, amount, phone } = order;
-      return (
-        fullName.includes(searchLower) ||
-        status.includes(searchLower) ||
-        amount.includes(searchLower) ||
-        phone.includes(searchLower)
-      );
-    });
-  }, [recentOrders, searchTerm]);
 
-  // Clear search function
-  const clearSearch = useCallback(() => {
-    setSearchTerm("");
-    setIsSearchFocused(false);
-  }, [filteredOrders, searchTerm]);
-
-  // Memoized monthly analytics data
-  const monthlyAnalytics = useMemo(() => {
-    if (displayOrders.length === 0) return [];
-    
-    // Group orders by month and calculate revenue
-    const monthlyData = displayOrders.reduce((acc, order) => {
-      const date = new Date(order.createdAt || new Date());
-      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-      const monthName = date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-      
-      if (!acc[monthKey]) {
-        acc[monthKey] = {
-          month: monthName,
-          revenue: 0,
-          orders: 0,
-          color: `hsl(${Math.random() * 360}, 70%, 50%)`
-        };
-      }
-      
-      acc[monthKey].revenue += order.totalPrice || 0;
-      acc[monthKey].orders += 1;
-      
-      return acc;
-    }, {} as Record<string, { month: string; revenue: number; orders: number; color: string }>);
-    
-    // Convert to array and sort by month
-    return Object.values(monthlyData)
-      .sort((a, b) => new Date(a.month).getTime() - new Date(b.month).getTime())
-      .slice(-6); // Last 6 months
-  }, [displayOrders]);
 
   // Fetch orders and products only once on component mount
   useEffect(() => {
@@ -283,89 +207,7 @@ export default function Dashboard() {
     }
   }, [dispatch, isInitialLoad]);
 
-  // Real-time WebSocket listeners for dashboard updates
-  useEffect(() => {
-    console.log('🔍 Dashboard: Setting up WebSocket listeners');
-    
-    if (typeof window !== 'undefined' && (window as any).socket) {
-      const socket = (window as any).socket;
-      
-      console.log('🔍 Dashboard: Socket found:', !!socket);
-      console.log('🔍 Dashboard: Socket connected:', socket.connected);
-      
-      // Check WebSocket connection status
-      setIsWebSocketConnected(socket.connected);
-      
-      const handleOrderStatusUpdate = (data: any) => {
-        console.log('🔄 Dashboard: Real-time order status update received:', data);
-        setLastUpdated(new Date());
-        
-        // Refresh orders data
-        dispatch(fetchOrders());
-      };
 
-      const handlePaymentStatusUpdate = (data: any) => {
-        console.log('💰 Dashboard: Real-time payment status update received:', data);
-        setLastUpdated(new Date());
-        
-        // Refresh orders data
-        dispatch(fetchOrders());
-      };
-
-      const handleNewOrder = (data: any) => {
-        console.log('🆕 Dashboard: New order received:', data);
-        setLastUpdated(new Date());
-        
-        // Refresh orders data
-        dispatch(fetchOrders());
-      };
-
-      const handleConnect = () => {
-        console.log('✅ Dashboard: WebSocket connected');
-        setIsWebSocketConnected(true);
-      };
-
-      const handleDisconnect = () => {
-        console.log('❌ Dashboard: WebSocket disconnected');
-        setIsWebSocketConnected(false);
-      };
-
-      // Listen for order updates
-      socket.on('orderStatusUpdated', handleOrderStatusUpdate);
-      socket.on('paymentStatusUpdated', handlePaymentStatusUpdate);
-      socket.on('newOrder', handleNewOrder);
-      socket.on('connect', handleConnect);
-      socket.on('disconnect', handleDisconnect);
-
-      return () => {
-        console.log('🔍 Dashboard: Cleaning up WebSocket listeners');
-        socket.off('orderStatusUpdated', handleOrderStatusUpdate);
-        socket.off('paymentStatusUpdated', handlePaymentStatusUpdate);
-        socket.off('newOrder', handleNewOrder);
-        socket.off('connect', handleConnect);
-        socket.off('disconnect', handleDisconnect);
-      };
-    } else {
-      console.warn('⚠️ Dashboard: WebSocket not available');
-      setIsWebSocketConnected(false);
-    }
-  }, [dispatch]);
-
-  // Independent API test
-  useEffect(() => {
-    const testAPI = async () => {
-      try {
-        console.log('🔍 Debug - Testing API independently...');
-        const response = await fetch('https://nike-backend-1-g9i6.onrender.com/api/order/all');
-        const data = await response.json();
-        console.log('🔍 Debug - Independent API response:', data);
-      } catch (error) {
-        console.error('🔍 Debug - Independent API error:', error);
-      }
-    };
-    
-    testAPI();
-  }, []);
 
   const formatPrice = useCallback((price: number) => {
     return `Rs ${price.toFixed(2)}`;
@@ -379,20 +221,6 @@ export default function Dashboard() {
     });
   }, []);
 
-  // Manual refresh function
-  const handleRefresh = useCallback(async () => {
-    setIsRefreshing(true);
-    try {
-      console.log('🔄 Dashboard: Manual refresh triggered');
-      await dispatch(fetchOrders());
-      setLastUpdated(new Date());
-      console.log('✅ Dashboard: Manual refresh completed');
-    } catch (error) {
-      console.error('❌ Dashboard: Manual refresh failed:', error);
-    } finally {
-      setIsRefreshing(false);
-    }
-  }, [dispatch]);
 
   // Download dashboard data as CSV
   const downloadDashboardData = useCallback(() => {
@@ -409,7 +237,7 @@ export default function Dashboard() {
       ['Recent Orders Details', ''],
       ['Customer Name', 'Status', 'Date', 'Amount', 'Phone Number'],
       // Order details
-      ...(searchTerm ? filteredOrders : recentOrders).map(order => [
+      ...recentOrders.map(order => [
         `${order.fullName}`,
         order.status,
         formatDate(order.createdAt || ''),
@@ -434,7 +262,7 @@ export default function Dashboard() {
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
-  }, [stats, recentOrders, formatDate, searchTerm, filteredOrders]);
+  }, [stats, recentOrders, formatDate]);
 
   // Loading state
   if (status === 'loading' && isInitialLoad) {

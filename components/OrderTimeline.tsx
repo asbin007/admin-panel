@@ -16,9 +16,7 @@ interface OrderTimelineProps {
 const OrderTimeline: React.FC<OrderTimelineProps> = ({ 
   currentStatus, 
   onStatusChange, 
-  isAdmin = false,
-  orderId,
-  onRefresh
+  isAdmin = false
 }) => {
   const statusLevels = [
     {

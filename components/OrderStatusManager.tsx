@@ -45,17 +45,20 @@ const OrderStatusManager: React.FC<OrderStatusManagerProps> = ({
   useEffect(() => {
     console.log('🔍 OrderStatusManager: Setting up WebSocket listeners for order:', orderId);
     
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     if (typeof window !== 'undefined' && (window as any).socket) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const socket = (window as any).socket;
       
       console.log('🔍 OrderStatusManager: Socket found:', !!socket);
       console.log('🔍 OrderStatusManager: Socket connected:', socket.connected);
       console.log('🔍 OrderStatusManager: Socket ID:', socket.id);
       
-      const handleOrderStatusUpdate = (data: any) => {
+      const handleOrderStatusUpdate = (data: unknown) => {
         console.log('🔄 OrderStatusManager: Real-time order status update received:', data);
-        console.log('🔄 OrderStatusManager: Received orderId:', data.orderId, 'Current orderId:', orderId);
-        if (data.orderId === orderId) {
+        const orderData = data as { orderId?: string };
+        console.log('🔄 OrderStatusManager: Received orderId:', orderData.orderId, 'Current orderId:', orderId);
+        if (orderData.orderId === orderId) {
           console.log('🔄 OrderStatusManager: Refreshing order data for order:', orderId);
           setIsRealTimeUpdating(true);
           if (onRefresh) {
@@ -66,10 +69,11 @@ const OrderStatusManager: React.FC<OrderStatusManagerProps> = ({
         }
       };
 
-      const handlePaymentStatusUpdate = (data: any) => {
+      const handlePaymentStatusUpdate = (data: unknown) => {
         console.log('💰 OrderStatusManager: Real-time payment status update received:', data);
-        console.log('💰 OrderStatusManager: Received orderId:', data.orderId, 'Current orderId:', orderId);
-        if (data.orderId === orderId) {
+        const paymentData = data as { orderId?: string };
+        console.log('💰 OrderStatusManager: Received orderId:', paymentData.orderId, 'Current orderId:', orderId);
+        if (paymentData.orderId === orderId) {
           console.log('💰 OrderStatusManager: Refreshing order data for order:', orderId);
           setIsRealTimeUpdating(true);
           if (onRefresh) {
@@ -123,7 +127,7 @@ const OrderStatusManager: React.FC<OrderStatusManagerProps> = ({
       } else {
         setUpdateMessage({ type: 'error', text: result.error || 'Failed to update status' });
       }
-    } catch (error) {
+    } catch {
       setUpdateMessage({ type: 'error', text: 'An error occurred while updating status' });
     } finally {
       setIsUpdating(false);
@@ -149,7 +153,7 @@ const OrderStatusManager: React.FC<OrderStatusManagerProps> = ({
       } else {
         setUpdateMessage({ type: 'error', text: result.error || 'Failed to update payment status' });
       }
-    } catch (error) {
+    } catch {
       setUpdateMessage({ type: 'error', text: 'An error occurred while updating payment status' });
     } finally {
       setIsUpdating(false);

@@ -91,7 +91,7 @@ export default function SettingsPage() {
       // Update user data in localStorage
       const updatedUser = { ...user, ...profileForm };
       localStorage.setItem("userData", JSON.stringify(updatedUser));
-      setUser(updatedUser);
+      setUser(updatedUser as User);
 
       toast.success("Profile updated successfully");
       

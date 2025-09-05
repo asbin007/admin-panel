@@ -97,7 +97,7 @@ export default function CustomerChat({ isOpen, onToggle, onClose }: CustomerChat
 
     // Listen for typing indicators
     socket.on("typing", ({ chatId, userId }: { chatId: string; userId: string }) => {
-      if (chat && chatId === chat.id && userId !== user.id) {
+      if (chat && chatId === chat.id && userId !== user?.[0]?.id) {
         setTypingUsers(prev => [...prev.filter(id => id !== userId), userId]);
       }
     });

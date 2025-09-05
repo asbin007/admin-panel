@@ -7,7 +7,6 @@ import {
   User,
   MapPin,
   CreditCard,
-  Truck,
 } from "lucide-react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
@@ -22,22 +21,13 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import AdminLayout from "@/app/adminLayout/adminLayout";
-import OrderTimeline from "@/components/OrderTimeline";
 import OrderStatusManager from "@/components/OrderStatusManager";
 
 function AdminOrderDetail() {
   const dispatch = useAppDispatch();
   const { id } = useParams();
   const { orderDetails, status } = useAppSelector((store) => store.orders);
-  const [isUpdating, setIsUpdating] = useState(false);
   const [localOrderStatus, setLocalOrderStatus] = useState<string>('');
   const [localPaymentStatus, setLocalPaymentStatus] = useState<string>('');
 
@@ -61,27 +51,31 @@ function AdminOrderDetail() {
   useEffect(() => {
     console.log('🔍 OrderDetail: Setting up WebSocket listeners for order:', id);
     
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     if (typeof window !== 'undefined' && (window as any).socket) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const socket = (window as any).socket;
       
       console.log('🔍 OrderDetail: Socket found:', !!socket);
       console.log('🔍 OrderDetail: Socket connected:', socket.connected);
       console.log('🔍 OrderDetail: Socket ID:', socket.id);
       
-      const handleOrderStatusUpdate = (data: any) => {
+      const handleOrderStatusUpdate = (data: unknown) => {
         console.log('🔄 OrderDetail: Real-time order status update received:', data);
-        console.log('🔄 OrderDetail: Received orderId:', data.orderId, 'Current orderId:', id);
-        if (data.orderId === id) {
+        const orderData = data as { orderId?: string };
+        console.log('🔄 OrderDetail: Received orderId:', orderData.orderId, 'Current orderId:', id);
+        if (orderData.orderId === id) {
           console.log('🔄 OrderDetail: Refreshing order details for order:', id);
           // Refresh order details to get latest data
           dispatch(fetchAdminOrderDetails(id as string));
         }
       };
 
-      const handlePaymentStatusUpdate = (data: any) => {
+      const handlePaymentStatusUpdate = (data: unknown) => {
         console.log('💰 OrderDetail: Real-time payment status update received:', data);
-        console.log('💰 OrderDetail: Received orderId:', data.orderId, 'Current orderId:', id);
-        if (data.orderId === id) {
+        const paymentData = data as { orderId?: string };
+        console.log('💰 OrderDetail: Received orderId:', paymentData.orderId, 'Current orderId:', id);
+        if (paymentData.orderId === id) {
           console.log('💰 OrderDetail: Refreshing order details for order:', id);
           // Refresh order details to get latest data
           dispatch(fetchAdminOrderDetails(id as string));
@@ -112,7 +106,6 @@ function AdminOrderDetail() {
 
   const handleOrderStatusChange = async (value: string) => {
     if (id && typeof id === 'string' && orderDetails.length > 0) {
-      setIsUpdating(true);
       try {
         // Get admin user ID from localStorage
         const userDataString = localStorage.getItem('userData');
@@ -142,8 +135,6 @@ function AdminOrderDetail() {
       } catch (error) {
         console.error('❌ Error updating order status:', error);
         return { success: false, error: 'Failed to update order status. Please try again.' };
-      } finally {
-        setIsUpdating(false);
       }
     }
     return { success: false, error: 'Invalid order ID or no order details' };
@@ -151,7 +142,6 @@ function AdminOrderDetail() {
 
   const handlePaymentStatusChange = async (value: string) => {
     if (id && typeof id === 'string' && orderDetails.length > 0) {
-      setIsUpdating(true);
       try {
         const paymentId = orderDetails[0].Order?.Payment?.id;
         
@@ -189,8 +179,6 @@ function AdminOrderDetail() {
       } catch (error) {
         console.error('❌ Error updating payment status:', error);
         return { success: false, error: 'Failed to update payment status. Please try again.' };
-      } finally {
-        setIsUpdating(false);
       }
     }
     return { success: false, error: 'Invalid order ID or no order details' };

@@ -90,7 +90,7 @@ export default function UserTable() {
                       <DropdownMenuContent align="end">
                         <DropdownMenuLabel>Actions</DropdownMenuLabel>
                         <DropdownMenuItem>Edit</DropdownMenuItem>
-                        <button onClick={() => deleteUser(user.id)}>
+                        <button onClick={() => user.id && deleteUser(user.id)}>
                           <DropdownMenuItem>Delete</DropdownMenuItem>
                         </button>
                       </DropdownMenuContent>
