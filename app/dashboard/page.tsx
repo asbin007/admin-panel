@@ -33,6 +33,7 @@ import { fetchOrders } from "@/store/orderSlice";
 import { fetchProducts } from "@/store/productSlice";
 import ClientOnly from "@/components/ClientOnly";
 import Link from "next/link";
+import Image from "next/image";
 
 export default function Dashboard() {
   const dispatch = useAppDispatch();
@@ -194,7 +195,15 @@ export default function Dashboard() {
         inStock: product.inStock || false,
         category: product.Category?.categoryName || 'Uncategorized',
         createdAt: product.createdAt || new Date().toISOString(),
-        image: product.images?.[0] || null
+        image: product.images?.[0] ? 
+          (product.images[0].startsWith('http') ? 
+            product.images[0] : 
+            `https://res.cloudinary.com/dxpe7jikz/image/upload/v1750340657${
+              product.images[0].startsWith("/uploads") 
+                ? product.images[0].replace("/uploads", "") 
+                : product.images[0]
+            }.jpg`
+          ) : null
       }));
   }, [products]);
 
@@ -634,10 +643,25 @@ export default function Dashboard() {
                     recentProducts.map((product, index) => (
                       <div key={product.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
                         <div className="flex items-center space-x-3">
-                          <div className="w-8 h-8 rounded-full bg-purple-100 dark:bg-purple-900/50 flex items-center justify-center">
-                            <span className="text-sm font-medium text-purple-600 dark:text-purple-400">
-                              {index + 1}
-                            </span>
+                          <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
+                            {product.image ? (
+                              <Image
+                                src={product.image}
+                                alt={product.name}
+                                width={48}
+                                height={48}
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  e.currentTarget.src = '/placeholder-image.svg';
+                                }}
+                              />
+                            ) : (
+                              <div className="w-8 h-8 rounded-full bg-purple-100 dark:bg-purple-900/50 flex items-center justify-center">
+                                <span className="text-sm font-medium text-purple-600 dark:text-purple-400">
+                                  {index + 1}
+                                </span>
+                              </div>
+                            )}
                           </div>
                           <div>
                             <p className="font-medium">{product.name}</p>
