@@ -40,6 +40,8 @@ export default function Dashboard() {
   const { items: orders, status } = useAppSelector((store) => store.orders);
   const { products } = useAppSelector((store) => store.adminProducts);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
 
   // Debug: Log orders from Redux store
   console.log('🔍 Debug - Orders from Redux store:', orders);
@@ -156,7 +158,7 @@ export default function Dashboard() {
       pendingOrders,
       completedOrders,
       cancelledOrders,
-    });
+    };
 
     return {
       totalRevenue,
@@ -231,10 +233,9 @@ export default function Dashboard() {
           amount: `Rs ${(order.totalPrice || 0).toFixed(2)}`,
           phone: phone || `#${order.id.slice(-6)}`,
           createdAt: order.createdAt || new Date().toISOString()
-=======
-      };
-    });
-  }, [orders]);
+        };
+      });
+    }, [orders]);
 
   // Search and filter functionality
   const filteredOrders = useMemo(() => {
@@ -270,7 +271,7 @@ export default function Dashboard() {
     
     // Group orders by month and calculate revenue
     const monthlyData = orders.reduce((acc, order) => {
-      const date = new Date();
+      const date = new Date(order.createdAt || new Date());
       const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
       const monthName = date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
       
@@ -280,10 +281,17 @@ export default function Dashboard() {
           revenue: 0,
           orders: 0,
           color: `hsl(${Math.random() * 360}, 70%, 50%)`
->>>>>>> c87a35df740d77136a7ed783a720acf25df9db87
         };
-      });
-  }, [displayOrders]);
+      }
+      
+      acc[monthKey].revenue += order.totalPrice || 0;
+      acc[monthKey].orders += 1;
+      
+      return acc;
+    }, {} as Record<string, { month: string; revenue: number; orders: number; color: string }>);
+    
+    return Object.values(monthlyData);
+  }, [orders]);
 
   // Memoized recent products data
   const recentProducts = useMemo(() => {

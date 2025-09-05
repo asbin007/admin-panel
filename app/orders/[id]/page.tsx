@@ -32,6 +32,7 @@ import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import AdminLayout from "@/app/adminLayout/adminLayout";
 import OrderStatusManager from "@/components/OrderStatusManager";
+import { OrderStatus, PaymentStatus } from "@/globals/types/types";
 
 function AdminOrderDetail() {
   const dispatch = useAppDispatch();
@@ -39,6 +40,7 @@ function AdminOrderDetail() {
   const { orderDetails, status } = useAppSelector((store) => store.orders);
   const [localOrderStatus, setLocalOrderStatus] = useState<string>('');
   const [localPaymentStatus, setLocalPaymentStatus] = useState<string>('');
+  const [isUpdating, setIsUpdating] = useState<boolean>(false);
 
   // Fetch order details when the page loads
   useEffect(() => {
@@ -155,6 +157,7 @@ function AdminOrderDetail() {
   const handleOrderStatusChange = async (value: string) => {
     if (id && typeof id === 'string' && orderDetails.length > 0) {
       try {
+        setIsUpdating(true);
         // Get current order and payment status for validation
         const currentOrder = orderDetails[0];
         const currentPaymentStatus = currentOrder?.Order?.Payment?.paymentStatus;
@@ -201,6 +204,7 @@ function AdminOrderDetail() {
           setLocalOrderStatus(value);
           // Refresh order details to get latest data
           dispatch(fetchAdminOrderDetails(id));
+          setIsUpdating(false);
           return { success: true };
         } else if (result.error && result.error !== 'WebSocket timeout') {
           // Only show error if it's not a WebSocket timeout
@@ -225,9 +229,11 @@ function AdminOrderDetail() {
           }
         }
         
+        setIsUpdating(false);
         return { success: true }; // WebSocket timeout is handled silently
       } catch (error) {
         console.error('❌ Error updating order status:', error);
+        setIsUpdating(false);
         return { success: false, error: 'Failed to update order status. Please try again.' };
       }
     }
@@ -237,6 +243,7 @@ function AdminOrderDetail() {
   const handlePaymentStatusChange = async (value: string) => {
     if (id && typeof id === 'string' && orderDetails.length > 0) {
       try {
+        setIsUpdating(true);
         const paymentId = orderDetails[0].Order?.Payment?.id;
         const currentOrder = orderDetails[0];
         const currentPaymentStatus = currentOrder?.Order?.Payment?.paymentStatus;
@@ -286,6 +293,7 @@ function AdminOrderDetail() {
           setLocalPaymentStatus(value);
           // Refresh order details to get latest data
           dispatch(fetchAdminOrderDetails(id));
+          setIsUpdating(false);
           return { success: true };
         } else if (result.error && result.error !== 'WebSocket timeout') {
           // Only show error if it's not a WebSocket timeout
@@ -309,9 +317,11 @@ function AdminOrderDetail() {
           }
         }
         
+        setIsUpdating(false);
         return { success: true }; // WebSocket timeout is handled silently
       } catch (error) {
         console.error('❌ Error updating payment status:', error);
+        setIsUpdating(false);
         return { success: false, error: 'Failed to update payment status. Please try again.' };
       }
     }
@@ -600,65 +610,48 @@ function AdminOrderDetail() {
             </Card>
 
             {/* Order Status Management */}
-            <OrderStatusManager
-              orderId={id as string}
-              currentStatus={localOrderStatus || order.Order.status || 'pending'}
-              paymentStatus={localPaymentStatus || order.Order.Payment.paymentStatus || 'unpaid'}
-              onStatusChange={handleOrderStatusChange}
-              onPaymentStatusChange={handlePaymentStatusChange}
-              onRefresh={() => dispatch(fetchAdminOrderDetails(id as string))}
-              isAdmin={true}
-            />
-                        onCheckedChange={(checked) => {
-                          handlePaymentStatusChange(checked ? 'paid' : 'unpaid');
-                        }}
-                        disabled={isUpdating}
-                        className="data-[state=checked]:bg-green-500"
-                      />
-                    </div>
+            <Card>
+              <CardHeader>
+                <CardTitle>Order Management</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <OrderStatusManager
+                  orderId={id as string}
+                  currentStatus={localOrderStatus || order.Order.status || 'pending'}
+                  paymentStatus={localPaymentStatus || order.Order.Payment.paymentStatus || 'unpaid'}
+                  onStatusChange={handleOrderStatusChange}
+                  onPaymentStatusChange={handlePaymentStatusChange}
+                  onRefresh={() => dispatch(fetchAdminOrderDetails(id as string))}
+                  isAdmin={true}
+                />
+                        
+                <Button
+                  variant={order.Order.Payment.paymentStatus === 'unpaid' ? 'outline' : 'destructive'}
+                  size="sm"
+                  onClick={() => {
+                    // Check if changing to unpaid is allowed
+                    const currentOrderStatus = order.Order.status;
+                    if (currentOrderStatus === 'delivered' || currentOrderStatus === 'ontheway') {
+                      toast.error(`Cannot change payment status to unpaid for ${currentOrderStatus} orders.`);
+                      return;
+                    }
+                    handlePaymentStatusChange('unpaid');
+                  }}
+                  disabled={isUpdating || order.Order.Payment.paymentStatus === 'unpaid' || 
+                           order.Order.status === 'delivered' || order.Order.status === 'ontheway'}
+                  className="flex items-center gap-2"
+                >
+                  {isUpdating ? <Loader2 className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />}
+                  Mark as Unpaid
+                </Button>
+                
+                {isUpdating && (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Updating payment status...
                   </div>
-                  
-                  {/* Quick Payment Actions */}
-                  <div className="grid grid-cols-2 gap-2">
-                    <Button
-                      variant={order.Order.Payment.paymentStatus === 'paid' ? 'outline' : 'default'}
-                      size="sm"
-                      onClick={() => handlePaymentStatusChange('paid')}
-                      disabled={isUpdating || order.Order.Payment.paymentStatus === 'paid'}
-                      className="flex items-center gap-2"
-                    >
-                      {isUpdating ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
-                      Mark as Paid
-                    </Button>
-                    
-                    <Button
-                      variant={order.Order.Payment.paymentStatus === 'unpaid' ? 'outline' : 'destructive'}
-                      size="sm"
-                      onClick={() => {
-                        // Check if changing to unpaid is allowed
-                        const currentOrderStatus = order.Order.status;
-                        if (currentOrderStatus === 'delivered' || currentOrderStatus === 'ontheway') {
-                          toast.error(`Cannot change payment status to unpaid for ${currentOrderStatus} orders.`);
-                          return;
-                        }
-                        handlePaymentStatusChange('unpaid');
-                      }}
-                      disabled={isUpdating || order.Order.Payment.paymentStatus === 'unpaid' || 
-                               order.Order.status === 'delivered' || order.Order.status === 'ontheway'}
-                      className="flex items-center gap-2"
-                    >
-                      {isUpdating ? <Loader2 className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />}
-                      Mark as Unpaid
-                    </Button>
-                  </div>
-                  
-                  {isUpdating && (
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      Updating payment status...
-                    </div>
-                  )}
-                </div>
+                )}
+                
                 <div className="space-y-4">
                   <label className="text-sm font-medium">Order Status Management</label>
                   
