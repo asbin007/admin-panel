@@ -31,7 +31,7 @@ import { useEffect } from "react";
 import { deleteUserById, fetchUsers } from "@/store/authSlice";
 
 export default function UserTable() {
-  const { user } = useAppSelector((store) => store.auth);
+  const { user: users } = useAppSelector((store) => store.auth);
   const dispatch = useAppDispatch();
 
   useEffect(() => {
@@ -66,7 +66,7 @@ export default function UserTable() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {user.map((user) => (
+              {users.map((user) => (
                 <TableRow key={user.id}>
                   <TableCell className="font-medium">{user.username}</TableCell>
                   <TableCell>{user.email}</TableCell>
@@ -90,7 +90,7 @@ export default function UserTable() {
                       <DropdownMenuContent align="end">
                         <DropdownMenuLabel>Actions</DropdownMenuLabel>
                         <DropdownMenuItem>Edit</DropdownMenuItem>
-                        <button onClick={() => deleteUser(user.id)}>
+                        <button onClick={() => user.id && deleteUser(user.id)}>
                           <DropdownMenuItem>Delete</DropdownMenuItem>
                         </button>
                       </DropdownMenuContent>
@@ -103,8 +103,8 @@ export default function UserTable() {
         </CardContent>
         <CardFooter>
           <div className="text-xs text-muted-foreground">
-            Showing <strong>1-{user.length}</strong> of{" "}
-            <strong>{user.length}</strong> users
+            Showing <strong>1-{users.length}</strong> of{" "}
+            <strong>{users.length}</strong> users
           </div>
         </CardFooter>
       </Card>

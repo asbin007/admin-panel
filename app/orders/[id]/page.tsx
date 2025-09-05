@@ -8,12 +8,18 @@ import {
   MapPin,
   CreditCard,
   Truck,
+  CheckCircle,
+  Clock,
+  XCircle,
+  Loader2,
 } from "lucide-react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
-import { fetchAdminOrderDetails, updateOrderStatus, updatePaymentStatus, OrderStatus, PaymentStatus } from "@/store/orderSlice";
+import { fetchAdminOrderDetails, updateOrderStatus, updatePaymentStatus, fetchOrders } from "@/store/orderSlice";
+import { toast } from "sonner";
 import { getWebSocketStatus } from "@/utils/websocketFallback";
+import { socket } from "@/app/app";
 
 import { Badge } from "@/components/ui/badge";
 import {
@@ -22,13 +28,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { Button } from "@/components/ui/button";
 import AdminLayout from "@/app/adminLayout/adminLayout";
 
 function AdminOrderDetail() {
@@ -44,12 +45,78 @@ function AdminOrderDetail() {
     }
   }, [id, dispatch]);
 
+  // WebSocket real-time updates
+  useEffect(() => {
+    if (socket && socket.connected) {
+      // Listen for order status updates
+      const handleOrderStatusUpdate = (data: { orderId: string }) => {
+        if (data.orderId === id) {
+          dispatch(fetchAdminOrderDetails(id as string));
+        }
+      };
+
+      // Listen for payment status updates
+      const handlePaymentStatusUpdate = (data: { orderId: string }) => {
+        if (data.orderId === id) {
+          dispatch(fetchAdminOrderDetails(id as string));
+        }
+      };
+
+      // Listen for broadcast updates
+      const handleBroadcastUpdate = (data: { orderId: string }) => {
+        if (data.orderId === id) {
+          dispatch(fetchAdminOrderDetails(id as string));
+        }
+      };
+
+      // Add event listeners
+      socket.on('statusUpdated', handleOrderStatusUpdate);
+      socket.on('paymentStatusUpdated', handlePaymentStatusUpdate);
+      socket.on('broadcastOrderUpdate', handleBroadcastUpdate);
+      socket.on('broadcastPaymentUpdate', handleBroadcastUpdate);
+
+      // Cleanup listeners on unmount
+      return () => {
+        socket.off('statusUpdated', handleOrderStatusUpdate);
+        socket.off('paymentStatusUpdated', handlePaymentStatusUpdate);
+        socket.off('broadcastOrderUpdate', handleBroadcastUpdate);
+        socket.off('broadcastPaymentUpdate', handleBroadcastUpdate);
+      };
+    }
+  }, [id, dispatch]);
 
 
   const handleOrderStatusChange = async (value: string) => {
     if (id && typeof id === 'string' && orderDetails.length > 0) {
       setIsUpdating(true);
       try {
+        // Get current order and payment status for validation
+        const currentOrder = orderDetails[0];
+        const currentPaymentStatus = currentOrder?.Order?.Payment?.paymentStatus;
+        const currentOrderStatus = currentOrder?.Order?.status;
+        const paymentMethod = currentOrder?.Order?.Payment?.paymentMethod;
+        
+        // Client-side validation
+        if (value === 'delivered' && currentPaymentStatus !== 'paid') {
+          toast.error('Cannot deliver order without payment. Payment must be completed first.', {
+            description: `Current payment status: ${currentPaymentStatus}`,
+            duration: 5000,
+          });
+          setIsUpdating(false);
+          return;
+        }
+        
+        if (value === 'preparation' && 
+            paymentMethod !== 'cod' && 
+            currentPaymentStatus !== 'paid') {
+          toast.error('Cannot prepare order without payment for non-COD orders.', {
+            description: `Payment method: ${paymentMethod}, Status: ${currentPaymentStatus}`,
+            duration: 5000,
+          });
+          setIsUpdating(false);
+          return;
+        }
+        
         // Get admin user ID from localStorage
         const userDataString = localStorage.getItem('userData');
         const userData = userDataString ? JSON.parse(userDataString) : null;
@@ -57,6 +124,8 @@ function AdminOrderDetail() {
         
         console.log('🔄 Updating order status to:', value);
         console.log('👤 Admin User ID:', adminUserId);
+        console.log('💰 Current payment status:', currentPaymentStatus);
+        console.log('💳 Payment method:', paymentMethod);
         
         // Direct API call - bypass WebSocket for now
         console.log('🌐 Using direct API call for order status update');
@@ -64,15 +133,41 @@ function AdminOrderDetail() {
         
         if (result.success) {
           console.log('✅ Order status updated successfully via API');
+          // Refresh order details to show updated status
+          dispatch(fetchAdminOrderDetails(id));
+          // Also refresh the main orders list for dashboard updates
+          dispatch(fetchOrders());
+          // Show success message
+          toast.success('Order status updated successfully!', {
+            description: `Status changed from ${currentOrderStatus} to ${value}`,
+            duration: 3000,
+          });
         } else {
           console.error('❌ Failed to update order status:', result.error);
-          alert('Failed to update order status. Please try again.');
+          // Show more specific error message
+          if (result.error?.includes('User not online')) {
+            toast.success('Order status updated successfully!', {
+              description: 'User was offline, but update was saved',
+              duration: 3000,
+            });
+            // Still refresh the data
+            dispatch(fetchAdminOrderDetails(id));
+            dispatch(fetchOrders());
+          } else {
+            toast.error('Failed to update order status', {
+              description: result.error || 'Please try again',
+              duration: 4000,
+            });
+          }
         }
         
         setIsUpdating(false);
       } catch (error) {
         console.error('❌ Error updating order status:', error);
-        alert('Failed to update order status. Please try again.');
+        toast.error('Failed to update order status', {
+          description: 'Please try again',
+          duration: 4000,
+        });
         setIsUpdating(false);
       }
     }
@@ -83,9 +178,31 @@ function AdminOrderDetail() {
       setIsUpdating(true);
       try {
         const paymentId = orderDetails[0].Order?.Payment?.id;
+        const currentOrder = orderDetails[0];
+        const currentPaymentStatus = currentOrder?.Order?.Payment?.paymentStatus;
+        const currentOrderStatus = currentOrder?.Order?.status;
         
         if (!paymentId) {
           console.error('❌ Payment ID not found in order details');
+          setIsUpdating(false);
+          return;
+        }
+        
+        // Client-side validation for payment status
+        if (currentPaymentStatus === 'paid' && value === 'unpaid' && currentOrderStatus === 'delivered') {
+          toast.error('Cannot change payment status from paid to unpaid for delivered orders.', {
+            description: `Order is already delivered`,
+            duration: 5000,
+          });
+          setIsUpdating(false);
+          return;
+        }
+        
+        if (currentPaymentStatus === 'paid' && value === 'unpaid' && currentOrderStatus === 'ontheway') {
+          toast.error('Cannot change payment status from paid to unpaid for orders that are on the way.', {
+            description: `Order is currently on the way`,
+            duration: 5000,
+          });
           setIsUpdating(false);
           return;
         }
@@ -98,6 +215,8 @@ function AdminOrderDetail() {
         console.log('🔄 Updating payment status to:', value);
         console.log('💰 Payment ID:', paymentId);
         console.log('👤 Admin User ID:', adminUserId);
+        console.log('📦 Current order status:', currentOrderStatus);
+        console.log('💳 Current payment status:', currentPaymentStatus);
         
         // Direct API call - bypass WebSocket for now
         console.log('🌐 Using direct API call for payment status update');
@@ -105,15 +224,38 @@ function AdminOrderDetail() {
         
         if (result.success) {
           console.log('✅ Payment status updated successfully via API');
+          // Refresh order details to show updated status
+          dispatch(fetchAdminOrderDetails(id));
+          // Show success message
+          toast.success('Payment status updated successfully!', {
+            description: `Status changed from ${currentPaymentStatus} to ${value}`,
+            duration: 3000,
+          });
         } else {
           console.error('❌ Failed to update payment status:', result.error);
-          alert('Failed to update payment status. Please try again.');
+          // Show more specific error message
+          if (result.error?.includes('User not online')) {
+            toast.success('Payment status updated successfully!', {
+              description: 'User was offline, but update was saved',
+              duration: 3000,
+            });
+            // Still refresh the data
+            dispatch(fetchAdminOrderDetails(id));
+          } else {
+            toast.error('Failed to update payment status', {
+              description: result.error || 'Please try again',
+              duration: 4000,
+            });
+          }
         }
         
         setIsUpdating(false);
       } catch (error) {
         console.error('❌ Error updating payment status:', error);
-        alert('Failed to update payment status. Please try again.');
+        toast.error('Failed to update payment status', {
+          description: 'Please try again',
+          duration: 4000,
+        });
         setIsUpdating(false);
       }
     }
@@ -121,34 +263,51 @@ function AdminOrderDetail() {
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case OrderStatus.Preparation:
+      case 'preparation':
         return <Badge className="bg-blue-500">Preparation</Badge>;
-      case OrderStatus.Ontheway:
+      case 'ontheway':
         return <Badge className="bg-yellow-500">On the way</Badge>;
-      case OrderStatus.Delivered:
+      case 'delivered':
         return <Badge className="bg-green-500">Delivered</Badge>;
-      case OrderStatus.Cancelled:
+      case 'cancelled':
         return <Badge variant="destructive">Cancelled</Badge>;
-      case OrderStatus.Pending:
+      case 'pending':
       default:
         return <Badge variant="outline">Pending</Badge>;
     }
   };
 
+  const getStatusProgress = (status: string) => {
+    switch (status) {
+      case 'pending':
+        return 0;
+      case 'preparation':
+        return 25;
+      case 'ontheway':
+        return 50;
+      case 'delivered':
+        return 75;
+      case 'cancelled':
+        return 0;
+      default:
+        return 0;
+    }
+  };
+
   const getPaymentStatusBadge = (status: string) => {
     switch (status) {
-      case PaymentStatus.Paid:
+      case 'paid':
         return <Badge className="bg-green-500">Paid</Badge>;
-      case PaymentStatus.Unpaid:
+      case 'unpaid':
       default:
         return <Badge variant="destructive">Unpaid</Badge>;
     }
   };
 
   // Loading state
-  if (status === "loading" || !orderDetails.length) {
-  return (
-    <AdminLayout>
+  if (status === "loading") {
+    return (
+      <AdminLayout>
         <div className="space-y-6">
           <div className="flex items-center gap-4">
             <Link href="/orders" className="flex items-center gap-2 text-muted-foreground hover:text-foreground">
@@ -161,6 +320,29 @@ function AdminOrderDetail() {
               <div className="text-center">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
                 <p className="text-muted-foreground">Loading order details...</p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </AdminLayout>
+    );
+  }
+
+  // No order details
+  if (!orderDetails.length) {
+    return (
+      <AdminLayout>
+        <div className="space-y-6">
+          <div className="flex items-center gap-4">
+            <Link href="/orders" className="flex items-center gap-2 text-muted-foreground hover:text-foreground">
+              <ArrowLeft className="h-4 w-4" />
+              Back to Orders
+            </Link>
+          </div>
+          <Card>
+            <CardContent className="flex justify-center items-center h-64">
+              <div className="text-center">
+                <p className="text-muted-foreground">No order details found</p>
               </div>
             </CardContent>
           </Card>
@@ -204,6 +386,7 @@ function AdminOrderDetail() {
   }
 
   const order = orderDetails[0];
+
 
   return (
     <AdminLayout>
@@ -368,49 +551,258 @@ function AdminOrderDetail() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Update Payment Status</label>
-                  <Select
-                    value={order.Order.Payment.paymentStatus || ""}
-                    onValueChange={handlePaymentStatusChange}
-                    disabled={isUpdating}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="paid">Paid</SelectItem>
-                      <SelectItem value="unpaid">Unpaid</SelectItem>
-                    </SelectContent>
-                  </Select>
+                <div className="space-y-4">
+                  <label className="text-sm font-medium">Payment Status Management</label>
+                  
+                  {/* Payment Status Toggle */}
+                  <div className="flex items-center justify-between p-4 border rounded-lg bg-muted/50">
+                    <div className="flex items-center gap-3">
+                      <CreditCard className="h-5 w-5 text-muted-foreground" />
+                      <div>
+                        <p className="font-medium">Payment Status</p>
+                        <p className="text-sm text-muted-foreground">
+                          {order.Order.Payment.paymentStatus === 'paid' ? 'Payment completed' : 'Payment pending'}
+                        </p>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center gap-3">
+                      <Badge variant={order.Order.Payment.paymentStatus === 'paid' ? 'default' : 'secondary'}>
+                        {order.Order.Payment.paymentStatus === 'paid' ? 'Paid' : 'Unpaid'}
+                      </Badge>
+                      
+                      <Switch
+                        checked={order.Order.Payment.paymentStatus === 'paid'}
+                        onCheckedChange={(checked) => {
+                          handlePaymentStatusChange(checked ? 'paid' : 'unpaid');
+                        }}
+                        disabled={isUpdating}
+                        className="data-[state=checked]:bg-green-500"
+                      />
+                    </div>
+                  </div>
+                  
+                  {/* Quick Payment Actions */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button
+                      variant={order.Order.Payment.paymentStatus === 'paid' ? 'outline' : 'default'}
+                      size="sm"
+                      onClick={() => handlePaymentStatusChange('paid')}
+                      disabled={isUpdating || order.Order.Payment.paymentStatus === 'paid'}
+                      className="flex items-center gap-2"
+                    >
+                      {isUpdating ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
+                      Mark as Paid
+                    </Button>
+                    
+                    <Button
+                      variant={order.Order.Payment.paymentStatus === 'unpaid' ? 'outline' : 'destructive'}
+                      size="sm"
+                      onClick={() => {
+                        // Check if changing to unpaid is allowed
+                        const currentOrderStatus = order.Order.status;
+                        if (currentOrderStatus === 'delivered' || currentOrderStatus === 'ontheway') {
+                          toast.error(`Cannot change payment status to unpaid for ${currentOrderStatus} orders.`);
+                          return;
+                        }
+                        handlePaymentStatusChange('unpaid');
+                      }}
+                      disabled={isUpdating || order.Order.Payment.paymentStatus === 'unpaid' || 
+                               order.Order.status === 'delivered' || order.Order.status === 'ontheway'}
+                      className="flex items-center gap-2"
+                    >
+                      {isUpdating ? <Loader2 className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />}
+                      Mark as Unpaid
+                    </Button>
+                  </div>
+                  
                   {isUpdating && (
-                    <p className="text-xs text-muted-foreground">Updating...</p>
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Updating payment status...
+                    </div>
                   )}
                 </div>
-                {order.Order.status !== OrderStatus.Cancelled && (
+                <div className="space-y-4">
+                  <label className="text-sm font-medium">Order Status Management</label>
+                  
+                  {/* Status Progress Bar */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Order Progress</span>
+                      <span className="font-medium capitalize">{order.Order.status}</span>
+                      {isUpdating && (
+                        <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
+                      )}
+                    </div>
+                    
+                    {/* Progress Steps with Checkpoints */}
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        {[
+                          { value: 'pending', label: 'Pending', icon: Clock, position: 0 },
+                          { value: 'preparation', label: 'Preparation', icon: Package, position: 25 },
+                          { value: 'ontheway', label: 'On the Way', icon: Truck, position: 50 },
+                          { value: 'delivered', label: 'Delivered', icon: CheckCircle, position: 75 }
+                        ].map((step) => {
+                          const Icon = step.icon;
+                          const isCompleted = getStatusProgress(order.Order.status) >= step.position;
+                          const isCurrent = order.Order.status === step.value;
+                          const isCancelled = order.Order.status === 'cancelled';
+                          const isClickable = !isUpdating && !isCancelled;
+                          
+                          return (
+                            <div 
+                              key={step.value} 
+                              className={`flex flex-col items-center space-y-1 ${
+                                isClickable ? 'cursor-pointer hover:scale-105' : 'cursor-default'
+                              } transition-all duration-200`}
+                              onClick={() => {
+                                if (isClickable && order.Order.status !== step.value) {
+                                  // Additional validation for realistic ecommerce flow
+                                  const currentPaymentStatus = order.Order.Payment.paymentStatus;
+                                  const paymentMethod = order.Order.Payment.paymentMethod;
+                                  
+                                  // Check if status change is allowed
+                                  if (step.value === 'delivered' && currentPaymentStatus !== 'paid') {
+                                    toast.error('Cannot deliver order without payment. Payment must be completed first.');
+                                    return;
+                                  }
+                                  
+                                  if (step.value === 'preparation' && 
+                                      paymentMethod !== 'cod' && 
+                                      currentPaymentStatus !== 'paid') {
+                                    toast.error('Cannot prepare order without payment for non-COD orders.');
+                                    return;
+                                  }
+                                  
+                                  handleOrderStatusChange(step.value);
+                                }
+                              }}
+                            >
+                              <div className={`flex items-center justify-center w-8 h-8 rounded-full text-xs font-medium transition-all duration-300 ${
+                                isCancelled ? 'bg-red-500 text-white' :
+                                isCurrent ? 'bg-blue-500 text-white scale-110' :
+                                isCompleted ? 'bg-green-500 text-white' :
+                                isClickable ? 'bg-gray-300 text-gray-600 hover:bg-gray-400' :
+                                'bg-gray-200 text-gray-400'
+                              }`}>
+                                {isCancelled ? <XCircle className="w-4 h-4" /> : <Icon className="w-4 h-4" />}
+                              </div>
+                              <span className={`text-xs font-medium ${
+                                isCurrent ? 'text-blue-600' : 
+                                isCompleted ? 'text-green-600' :
+                                isCancelled ? 'text-red-600' :
+                                isClickable ? 'text-gray-600 hover:text-gray-800' :
+                                'text-gray-400'
+                              }`}>
+                                {step.label}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      
+                      {/* Progress Line with Checkpoints */}
+                      <div className="relative">
+                        <div className="h-2 bg-gray-200 rounded-full overflow-hidden shadow-inner">
+                          <div className={`h-2 rounded-full transition-all duration-700 ease-out shadow-sm ${
+                            order.Order.status === 'cancelled' ? 'w-full bg-red-500' :
+                            order.Order.status === 'pending' ? 'w-0 bg-blue-500' :
+                            order.Order.status === 'preparation' ? 'w-1/4 bg-blue-500' :
+                            order.Order.status === 'ontheway' ? 'w-1/2 bg-yellow-500' :
+                            order.Order.status === 'delivered' ? 'w-3/4 bg-green-500' :
+                            'w-0'
+                          }`} />
+                        </div>
+                        
+                        {/* Checkpoint Dots */}
+                        <div className="absolute top-0 left-0 w-full h-2 flex justify-between items-center">
+                          {[
+                            { position: 0, status: 'pending' },
+                            { position: 25, status: 'preparation' },
+                            { position: 50, status: 'ontheway' },
+                            { position: 75, status: 'delivered' }
+                          ].map((checkpoint) => {
+                            const isCompleted = getStatusProgress(order.Order.status) >= checkpoint.position;
+                            const isCancelled = order.Order.status === 'cancelled';
+                            const isClickable = !isUpdating && !isCancelled && checkpoint.status !== order.Order.status;
+                            
+                            return (
+                              <div
+                                key={checkpoint.status}
+                                className={`w-4 h-4 rounded-full border-2 transition-all duration-300 ${
+                                  isCancelled ? 'bg-red-500 border-red-500' :
+                                  isCompleted ? 'bg-green-500 border-green-500' :
+                                  isClickable ? 'bg-white border-gray-300 hover:border-blue-400 hover:bg-blue-100 cursor-pointer' :
+                                  'bg-white border-gray-300'
+                                }`}
+                                style={{ transform: 'translateY(-6px)' }}
+                                onClick={() => {
+                                  if (isClickable && checkpoint.status !== order.Order.status) {
+                                    handleOrderStatusChange(checkpoint.status);
+                                  }
+                                }}
+                              />
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* All Status Options */}
                   <div className="space-y-2">
-                    <label className="text-sm font-medium">Update Order Status</label>
-                    <Select
-                      value={order.Order.status || ""}
-                      onValueChange={handleOrderStatusChange}
-                      disabled={isUpdating}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="pending">Pending</SelectItem>
-                        <SelectItem value="preparation">Preparation</SelectItem>
-                        <SelectItem value="ontheway">On the Way</SelectItem>
-                        <SelectItem value="delivered">Delivered</SelectItem>
-                        <SelectItem value="cancelled">Cancelled</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    {isUpdating && (
-                      <p className="text-xs text-muted-foreground">Updating...</p>
-                    )}
-              </div>
-                )}
+                    <p className="text-sm font-medium text-muted-foreground">Change Status To:</p>
+                    <div className="grid grid-cols-1 gap-2">
+                      {[
+                        { value: 'pending', label: 'Pending', icon: Clock, color: 'bg-gray-500' },
+                        { value: 'preparation', label: 'Preparation', icon: Package, color: 'bg-blue-500' },
+                        { value: 'ontheway', label: 'On the Way', icon: Truck, color: 'bg-yellow-500' },
+                        { value: 'delivered', label: 'Delivered', icon: CheckCircle, color: 'bg-green-500' },
+                        { value: 'cancelled', label: 'Cancelled', icon: XCircle, color: 'bg-red-500' }
+                      ].map((status) => {
+                        const Icon = status.icon;
+                        const isCurrentStatus = order.Order.status === status.value;
+                        const isDisabled = isUpdating || isCurrentStatus;
+                        
+                        return (
+                          <Button
+                            key={status.value}
+                            variant={isCurrentStatus ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => handleOrderStatusChange(status.value)}
+                            disabled={isDisabled}
+                            className={`flex items-center justify-between w-full ${
+                              isCurrentStatus ? `${status.color} text-white` : ''
+                            }`}
+                          >
+                            <div className="flex items-center gap-2">
+                              {isUpdating ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <Icon className="w-4 h-4" />
+                              )}
+                              <span>{status.label}</span>
+                            </div>
+                            {isCurrentStatus && (
+                              <Badge variant="secondary" className="text-xs">
+                                Current
+                              </Badge>
+                            )}
+                          </Button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  
+                  {isUpdating && (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Updating order status...
+                    </div>
+                  )}
+                </div>
               </CardContent>
             </Card>
           </div>

@@ -57,14 +57,42 @@ export default function Dashboard() {
       };
     }
 
-      const totalRevenue = orders.reduce((sum, order) => sum + (order.totalPrice || 0), 0);
-      const totalOrders = orders.length;
-      const pendingOrders = orders.filter(order => 
-        order.status === 'pending' || order.status === 'preparation'
-      ).length;
-      const completedOrders = orders.filter(order => 
-        order.status === 'delivered'
-      ).length;
+    // Debug: Log order statuses
+    console.log('📊 Dashboard Stats Debug:');
+    console.log('Total orders:', orders.length);
+    console.log('Sample order structure:', orders[0]);
+    console.log('Order statuses:', orders.map(order => ({ 
+      id: order.id, 
+      status: order.status,
+      totalPrice: order.totalPrice 
+    })));
+    
+    const totalRevenue = orders.reduce((sum, order) => sum + (order.totalPrice || 0), 0);
+    const totalOrders = orders.length;
+    const pendingOrders = orders.filter(order => 
+      order.status === 'pending' || order.status === 'preparation'
+    ).length;
+    const completedOrders = orders.filter(order => 
+      order.status?.toLowerCase() === 'delivered'
+    ).length;
+
+    // Debug: Check what orders are being filtered as completed
+    const completedOrdersList = orders.filter(order => 
+      order.status?.toLowerCase() === 'delivered'
+    );
+    console.log('✅ Completed orders found:', completedOrdersList.length);
+    console.log('✅ Completed orders details:', completedOrdersList.map(order => ({ 
+      id: order.id, 
+      status: order.status,
+      totalPrice: order.totalPrice 
+    })));
+
+    console.log('📈 Calculated stats:', {
+      totalRevenue,
+      totalOrders,
+      pendingOrders,
+      completedOrders
+    });
 
     return {
         totalRevenue,

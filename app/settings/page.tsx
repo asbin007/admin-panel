@@ -53,11 +53,20 @@ export default function SettingsPage() {
     if (userData) {
       try {
         const parsedUser = JSON.parse(userData);
-        setUser(parsedUser);
-        setProfileForm({
+        // Ensure the parsed user has all required fields
+        const user: User = {
+          id: parsedUser.id || '',
           username: parsedUser.username || '',
           email: parsedUser.email || '',
-          phoneNumber: parsedUser.phoneNumber || '',
+          role: parsedUser.role || 'admin',
+          isVerified: parsedUser.isVerified || false,
+          phoneNumber: parsedUser.phoneNumber || ''
+        };
+        setUser(user);
+        setProfileForm({
+          username: user.username || '',
+          email: user.email || '',
+          phoneNumber: user.phoneNumber || '',
           currentPassword: '',
           newPassword: '',
           confirmPassword: ''
@@ -89,9 +98,16 @@ export default function SettingsPage() {
       await new Promise(resolve => setTimeout(resolve, 1000));
 
       // Update user data in localStorage
-      const updatedUser = { ...user, ...profileForm };
-      localStorage.setItem("userData", JSON.stringify(updatedUser));
-      setUser(updatedUser);
+      if (user) {
+        const updatedUser: User = { 
+          ...user, 
+          username: profileForm.username,
+          email: profileForm.email,
+          phoneNumber: profileForm.phoneNumber
+        };
+        localStorage.setItem("userData", JSON.stringify(updatedUser));
+        setUser(updatedUser);
+      }
 
       toast.success("Profile updated successfully");
       

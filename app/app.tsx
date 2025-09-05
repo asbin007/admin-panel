@@ -7,16 +7,18 @@ import io from 'socket.io-client';
 import { useEffect, useState } from 'react';
 
 // Create socket instance with better configuration
-export const socket = io("https://nike-backend-1-g9i6.onrender.com", { // Backend port
+export const socket = io("https://nike-backend-1-g9i6.onrender.com", {
   autoConnect: false,
-  transports: ['websocket', 'polling'], // Try WebSocket first, then polling
-  timeout: 10000, // 10 second timeout
+  transports: ['websocket', 'polling'],
+  timeout: 10000,
   forceNew: true,
   reconnection: true,
   reconnectionAttempts: 5,
   reconnectionDelay: 1000,
   reconnectionDelayMax: 5000,
-
+  auth: {
+    token: typeof window !== 'undefined' ? localStorage.getItem("tokenauth") : null
+  }
 });
 
 // Make socket available globally
@@ -50,29 +52,14 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
           setConnectionStatus('connecting');
           console.log('🔐 Connecting with token:', token.substring(0, 20) + '...');
           
-          // Set auth token and connect
-          (socket as unknown as { auth: { token: string } }).auth = { token };
+          // Connect with auth token
           socket.connect();
-          
-          // Add authentication event listener
-          socket.on('authenticated', (data: { userId: string }) => {
-            console.log('✅ Admin authenticated via WebSocket:', data);
-            setConnectionStatus('connected');
-            // Store the authenticated user ID for use in order updates
-            (socket as unknown as { authenticatedUserId: string }).authenticatedUserId = data.userId;
-            console.log('💾 Stored authenticated user ID:', data.userId);
-          });
-          
-          socket.on('unauthorized', (error: unknown) => {
-            console.error('❌ Admin WebSocket authentication failed:', error);
-            setConnectionStatus('error');
-          });
           
           // Set a timeout to check if connection is successful
           connectionCheckTimeout = setTimeout(() => {
             if (!socket.connected) {
               setConnectionStatus('error');
-              console.warn('WebSocket connection timeout - server might not be running');
+              console.warn('WebSocket connection timeout');
             }
           }, 5000);
         } else if (!token) {
@@ -86,22 +73,6 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
       }
     };
 
-    socket.on('connect', () => {
-      console.log('✅ WebSocket connected successfully to port 5001');
-      setConnectionStatus('connected');
-      setIsWebSocketEnabled(true);
-      
-      // Clear any pending reconnect attempts
-      if (reconnectTimeout) {
-        clearTimeout(reconnectTimeout);
-      }
-      if (connectionCheckTimeout) {
-        clearTimeout(connectionCheckTimeout);
-      }
-      
-      // Emit a test event to verify connection
-      socket.emit('adminConnected', { timestamp: Date.now() });
-    });
     
     socket.on('connect_error', (error: unknown) => {
       console.error('❌ WebSocket connection error:', error);
@@ -173,6 +144,21 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
       setIsWebSocketEnabled(false);
     });
     
+    // Simple WebSocket event listeners
+    socket.on('connect', () => {
+      console.log('✅ WebSocket connected successfully');
+      setConnectionStatus('connected');
+      setIsWebSocketEnabled(true);
+      
+      // Clear any pending reconnect attempts
+      if (reconnectTimeout) {
+        clearTimeout(reconnectTimeout);
+      }
+      if (connectionCheckTimeout) {
+        clearTimeout(connectionCheckTimeout);
+      }
+    });
+
     // Initial setup
     setupSocket();
 
