@@ -17,7 +17,7 @@ import {
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
-import { fetchAdminOrderDetails, updateOrderStatus, updatePaymentStatus, fetchOrders } from "@/store/orderSlice";
+import { fetchAdminOrderDetails, updateOrderStatus, updatePaymentStatus } from "@/store/orderSlice";
 import { toast } from "sonner";
 import { getWebSocketStatus } from "@/utils/websocketFallback";
 import { socket } from "@/app/app";
@@ -49,14 +49,22 @@ function AdminOrderDetail() {
     }
   }, [id, dispatch]);
 
-  // Sync local state with order details
+  // Sync local state with order details - only update if different
   useEffect(() => {
     if (orderDetails.length > 0) {
       const order = orderDetails[0];
-      setLocalOrderStatus(order.Order?.status || 'pending');
-      setLocalPaymentStatus(order.Order?.Payment?.paymentStatus || 'unpaid');
+      const serverOrderStatus = order.Order?.status || 'pending';
+      const serverPaymentStatus = order.Order?.Payment?.paymentStatus || 'unpaid';
+      
+      // Only update local state if it's different from server state
+      if (localOrderStatus !== serverOrderStatus) {
+        setLocalOrderStatus(serverOrderStatus);
+      }
+      if (localPaymentStatus !== serverPaymentStatus) {
+        setLocalPaymentStatus(serverPaymentStatus);
+      }
     }
-  }, [orderDetails]);
+  }, [orderDetails, localOrderStatus, localPaymentStatus]);
 
   // Real-time WebSocket listeners for order updates
   useEffect(() => {
@@ -73,23 +81,35 @@ function AdminOrderDetail() {
       
       const handleOrderStatusUpdate = (data: unknown) => {
         console.log('🔄 OrderDetail: Real-time order status update received:', data);
-        const orderData = data as { orderId?: string };
+        const orderData = data as { orderId?: string; status?: string };
         console.log('🔄 OrderDetail: Received orderId:', orderData.orderId, 'Current orderId:', id);
         if (orderData.orderId === id) {
-          console.log('🔄 OrderDetail: Refreshing order details for order:', id);
-          // Refresh order details to get latest data
-          dispatch(fetchAdminOrderDetails(id as string));
+          console.log('🔄 OrderDetail: Updating local state for order:', id);
+          // Update local state immediately for instant UI feedback
+          if (orderData.status) {
+            setLocalOrderStatus(orderData.status);
+          }
+          // Only refresh if we need to sync with server data
+          setTimeout(() => {
+            dispatch(fetchAdminOrderDetails(id as string));
+          }, 1000);
         }
       };
 
       const handlePaymentStatusUpdate = (data: unknown) => {
         console.log('💰 OrderDetail: Real-time payment status update received:', data);
-        const paymentData = data as { orderId?: string };
+        const paymentData = data as { orderId?: string; status?: string };
         console.log('💰 OrderDetail: Received orderId:', paymentData.orderId, 'Current orderId:', id);
         if (paymentData.orderId === id) {
-          console.log('💰 OrderDetail: Refreshing order details for order:', id);
-          // Refresh order details to get latest data
-          dispatch(fetchAdminOrderDetails(id as string));
+          console.log('💰 OrderDetail: Updating local state for order:', id);
+          // Update local state immediately for instant UI feedback
+          if (paymentData.status) {
+            setLocalPaymentStatus(paymentData.status);
+          }
+          // Only refresh if we need to sync with server data
+          setTimeout(() => {
+            dispatch(fetchAdminOrderDetails(id as string));
+          }, 1000);
         }
       };
 
@@ -199,10 +219,8 @@ function AdminOrderDetail() {
         
         if (result.success) {
           console.log(`✅ Order status updated successfully via ${result.method || 'API'}`);
-          // Update local state immediately
+          // Update local state immediately for instant UI feedback
           setLocalOrderStatus(value);
-          // Refresh order details to get latest data
-          dispatch(fetchAdminOrderDetails(id));
           setIsUpdating(false);
           return { success: true };
         } else if (result.error && result.error !== 'WebSocket timeout') {
@@ -218,15 +236,15 @@ function AdminOrderDetail() {
               description: 'User was offline, but update was saved',
               duration: 3000,
             });
-            // Still refresh the data
-            dispatch(fetchAdminOrderDetails(id));
-            dispatch(fetchOrders());
+            // Update local state immediately
+            setLocalOrderStatus(value);
           } else {
             toast.error('Failed to update order status', {
               description: result.error || 'Please try again',
               duration: 4000,
             });
           }
+          setIsUpdating(false);
         }
         
         setIsUpdating(false);
@@ -289,15 +307,14 @@ function AdminOrderDetail() {
         
         if (result.success) {
           console.log(`✅ Payment status updated successfully via ${result.method || 'API'}`);
-          // Update local state immediately
+          // Update local state immediately for instant UI feedback
           setLocalPaymentStatus(value);
-          // Refresh order details to get latest data
-          dispatch(fetchAdminOrderDetails(id));
           setIsUpdating(false);
           return { success: true };
         } else if (result.error && result.error !== 'WebSocket timeout') {
           // Only show error if it's not a WebSocket timeout
           console.error('❌ Failed to update payment status:', result.error);
+          setIsUpdating(false);
           return { success: false, error: result.error || 'Unknown error' };
         } else {
           console.error('❌ Failed to update payment status:', result.error);
@@ -307,14 +324,15 @@ function AdminOrderDetail() {
               description: 'User was offline, but update was saved',
               duration: 3000,
             });
-            // Still refresh the data
-            dispatch(fetchAdminOrderDetails(id));
+            // Update local state immediately
+            setLocalPaymentStatus(value);
           } else {
             toast.error('Failed to update payment status', {
               description: result.error || 'Please try again',
               duration: 4000,
             });
           }
+          setIsUpdating(false);
         }
         
         setIsUpdating(false);
@@ -623,7 +641,12 @@ function AdminOrderDetail() {
                   paymentStatus={localPaymentStatus || order.Order.Payment.paymentStatus || 'unpaid'}
                   onStatusChange={handleOrderStatusChange}
                   onPaymentStatusChange={handlePaymentStatusChange}
-                  onRefresh={() => dispatch(fetchAdminOrderDetails(id as string))}
+                  onRefresh={() => {
+                    // Debounced refresh to prevent excessive API calls
+                    setTimeout(() => {
+                      dispatch(fetchAdminOrderDetails(id as string));
+                    }, 500);
+                  }}
                   isAdmin={true}
                 />
                         
