@@ -413,7 +413,7 @@ export function updatePaymentStatus(orderId: string, paymentId: string, status: 
     console.log('🌐 WebSocket not available, using API update');
     try {
       console.log('📤 Sending payment status update:', { orderId, paymentId, status });
-      console.log('📤 Request payload:', { status });
+      console.log('📤 Request payload:', { paymentId, status });
       console.log('📤 Request URL:', `/order/admin/change-payment-status/${paymentId}`);
       
       // Check authentication token
@@ -421,8 +421,11 @@ export function updatePaymentStatus(orderId: string, paymentId: string, status: 
       console.log('🔐 Auth token exists:', !!token);
       console.log('🔐 Auth token length:', token?.length || 0);
       
-      // Use the working endpoint only
-      const response = await APIS.patch(`/order/admin/change-payment-status/${paymentId}`, { status });
+      // Use the working endpoint only - backend expects both paymentId and status in body
+      const response = await APIS.patch(`/order/admin/change-payment-status/${paymentId}`, { 
+        paymentId: paymentId, 
+        status: status 
+      });
       
       if (response && (response.status === 200 || response.status === 201)) {
         console.log('✅ Payment status updated via API');
