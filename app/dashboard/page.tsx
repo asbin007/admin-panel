@@ -31,7 +31,9 @@ import { useAppSelector, useAppDispatch } from "@/store/hooks";
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { fetchOrders } from "@/store/orderSlice";
 import { fetchProducts } from "@/store/productSlice";
-import ClientOnly from "@/components/ClientOnly";
+import { fetchUsers } from "@/store/authSlice";
+import { fetchAllReviews } from "@/store/reviewsSlice";
+import { fetchAdminChats } from "@/store/chatSlice";
 import Link from "next/link";
 import Image from "next/image";
 
@@ -39,6 +41,9 @@ export default function Dashboard() {
   const dispatch = useAppDispatch();
   const { items: orders, status } = useAppSelector((store) => store.orders);
   const { products } = useAppSelector((store) => store.adminProducts);
+  const { user: users } = useAppSelector((store) => store.auth);
+  const { items: reviews } = useAppSelector((store) => store.reviews);
+  const { chats } = useAppSelector((store) => store.chat);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
 
   // Debug: Log orders from Redux store
@@ -209,12 +214,15 @@ export default function Dashboard() {
 
 
 
-  // Fetch orders and products only once on component mount
+  // Fetch orders, products, users, reviews, and chats only once on component mount
   useEffect(() => {
     if (isInitialLoad) {
-      console.log('🔍 Debug - Fetching orders and products on component mount');
+      console.log('🔍 Debug - Fetching orders, products, users, reviews, and chats on component mount');
       dispatch(fetchOrders());
       dispatch(fetchProducts());
+      dispatch(fetchUsers());
+      dispatch(fetchAllReviews());
+      dispatch(fetchAdminChats());
       setIsInitialLoad(false);
     }
   }, [dispatch, isInitialLoad]);
@@ -280,45 +288,24 @@ export default function Dashboard() {
   if (status === 'loading' && isInitialLoad) {
     return (
       <AdminLayout>
-        <ClientOnly 
-          fallback={
-            <div className="w-full h-screen flex justify-center items-center">
-              <div className="text-center">
-                <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
-                <p className="text-muted-foreground">Loading dashboard...</p>
-              </div>
-            </div>
-          }
-        >
-          <div className="flex items-center justify-center min-h-[400px]">
-            <div className="text-center">
-              <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
-              <p className="text-muted-foreground">Loading dashboard data...</p>
-            </div>
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center">
+            <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
+            <p className="text-muted-foreground">Loading dashboard data...</p>
           </div>
-        </ClientOnly>
+        </div>
       </AdminLayout>
     );
   }
 
   return (
     <AdminLayout>
-      <ClientOnly 
-        fallback={
-          <div className="w-full h-screen flex justify-center items-center">
-            <div className="text-center">
-              <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
-              <p className="text-muted-foreground">Loading dashboard...</p>
-            </div>
-          </div>
-        }
-      >
-        <div className="flex-1 space-y-6 p-4 md:p-8 pt-6">
+        <div className="flex-1 space-y-4 sm:space-y-6 p-2 sm:p-4 md:p-8 pt-2 sm:pt-6">
           {/* Header */}
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div>
-              <h2 className="text-3xl font-bold tracking-tight">Dashboard</h2>
-              <p className="text-muted-foreground">Welcome to your admin panel</p>
+              <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">Dashboard</h2>
+              <p className="text-sm sm:text-base text-muted-foreground">Welcome to your admin panel</p>
             </div>
             <div className="flex items-center space-x-2">
               <Button 
@@ -332,16 +319,16 @@ export default function Dashboard() {
           </div>
 
           {/* Quick Stats */}
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-3 sm:gap-4 grid-cols-2 md:grid-cols-2 lg:grid-cols-4">
             <Card className="group hover:shadow-lg transition-all duration-300 bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-950/30 dark:to-emerald-900/20 border-emerald-200 dark:border-emerald-800/50 hover:scale-105">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-emerald-800 dark:text-emerald-200">Total Revenue</CardTitle>
+                <CardTitle className="text-xs sm:text-sm font-medium text-emerald-800 dark:text-emerald-200">Total Revenue</CardTitle>
                 <div className="p-2 rounded-lg bg-emerald-100 dark:bg-emerald-900/50 group-hover:bg-emerald-200 dark:group-hover:bg-emerald-800/70 transition-colors duration-300">
                   <DollarSign className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-emerald-700 dark:text-emerald-300">{formatPrice(stats.totalRevenue)}</div>
+                <div className="text-lg sm:text-2xl font-bold text-emerald-700 dark:text-emerald-300">{formatPrice(stats.totalRevenue)}</div>
                 <p className="text-xs text-emerald-600 dark:text-emerald-400">
                   +20.1% from last month
                 </p>
@@ -432,7 +419,7 @@ export default function Dashboard() {
                   <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-green-600 transition-colors duration-300" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold text-green-600">{stats.totalOrders}</div>
+                  <div className="text-2xl font-bold text-green-600">{users?.length || 0}</div>
                   <p className="text-sm text-muted-foreground">Registered customers</p>
                 </CardContent>
               </Card>
@@ -474,7 +461,7 @@ export default function Dashboard() {
                   <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-yellow-600 transition-colors duration-300" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold text-yellow-600">{stats.completedOrders}</div>
+                  <div className="text-2xl font-bold text-yellow-600">{reviews?.length || 0}</div>
                   <p className="text-sm text-muted-foreground">Customer reviews</p>
                 </CardContent>
               </Card>
@@ -495,7 +482,7 @@ export default function Dashboard() {
                   <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-indigo-600 transition-colors duration-300" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold text-indigo-600">{stats.pendingOrders}</div>
+                  <div className="text-2xl font-bold text-indigo-600">{chats?.length || 0}</div>
                   <p className="text-sm text-muted-foreground">Active conversations</p>
                 </CardContent>
               </Card>
@@ -740,7 +727,6 @@ export default function Dashboard() {
             </Card>
           </div>
         </div>
-      </ClientOnly>
     </AdminLayout>
   );
 }

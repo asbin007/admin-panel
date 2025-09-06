@@ -21,6 +21,21 @@ const nextConfig: NextConfig = {
   },
   // Suppress hydration warnings for browser extensions
   reactStrictMode: true,
+  // Webpack configuration to fix module resolution issues
+  webpack: (config, { dev, isServer }) => {
+    // Fix for module resolution issues
+    if (!isServer) {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        net: false,
+        tls: false,
+        crypto: false,
+      };
+    }
+    
+    return config;
+  },
 };
 
 export default nextConfig;

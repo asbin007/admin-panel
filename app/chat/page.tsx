@@ -138,6 +138,27 @@ export default function ChatPage() {
     dispatch(setUnreadCount(totalUnread));
   }, [chats, dispatch]);
 
+  const fetchAdminChats = async () => {
+    try {
+      const { APIS } = await import("@/globals/http");
+      
+      const response = await APIS.get("/chats/all");
+      
+      if (response.status === 200) {
+        console.log("✅ Chats fetched successfully:", response.data);
+        setChats(response.data.data || []);
+      } else {
+        console.error("Error fetching admin chats:", response.status);
+        // Set empty array if API fails instead of mock data
+        setChats([]);
+      }
+    } catch (error) {
+      console.error("Error fetching chats:", error);
+      // Set empty array if network error instead of mock data
+      setChats([]);
+    }
+  };
+
   const updateChatList = useCallback(async () => {
     await fetchAdminChats();
   }, []);
@@ -203,26 +224,6 @@ export default function ChatPage() {
     };
   }, [selectedChat, addNotification, chats, user, updateChatList]);
 
-  const fetchAdminChats = async () => {
-    try {
-      const { APIS } = await import("@/globals/http");
-      
-      const response = await APIS.get("/chats/all");
-      
-      if (response.status === 200) {
-        console.log("✅ Chats fetched successfully:", response.data);
-        setChats(response.data.data || []);
-      } else {
-        console.error("Error fetching admin chats:", response.status);
-        // Set empty array if API fails instead of mock data
-        setChats([]);
-      }
-    } catch (error) {
-      console.error("Error fetching chats:", error);
-      // Set empty array if network error instead of mock data
-      setChats([]);
-    }
-  };
 
   // Removed setMockChats function - no longer using mock data
 

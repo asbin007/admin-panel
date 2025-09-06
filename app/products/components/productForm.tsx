@@ -167,7 +167,14 @@ const AddProductForm: React.FC<AddProductFormProps> = ({ closeModal, editProduct
     if (formData.totalStock < 0) newErrors.totalStock = "Stock cannot be negative"
     if (!formData.Category.id) newErrors.category = "Please select a category"
     if (!formData.Collection.id) newErrors.collection = "Please select a collection"
-    if (formData.images.length === 0) newErrors.images = "At least one product image is required"
+    // Check if we have any images (new uploads or existing)
+    const hasNewImages = formData.images.length > 0
+    const hasExistingImages = isEdit && editProduct?.images && editProduct.images.length > 0
+    const hasAnyImages = hasNewImages || hasExistingImages
+    
+    if (!hasAnyImages) {
+      newErrors.images = "At least one product image is required"
+    }
 
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
@@ -280,14 +287,26 @@ const AddProductForm: React.FC<AddProductFormProps> = ({ closeModal, editProduct
     const data = new FormData()
     Object.entries(formData).forEach(([key, value]) => {
       if (key === "images" && Array.isArray(value)) {
-        value.forEach((file) => data.append("images", file))
+        // Only append new images (File objects), not existing image URLs
+        value.forEach((file) => {
+          if (file instanceof File) {
+            data.append("images", file)
+          }
+        })
+        
+        // For edit mode, include existing images as URLs
+        if (isEdit && editProduct && editProduct.images && editProduct.images.length > 0) {
+          editProduct.images.forEach((imageUrl: string) => {
+            data.append("existingImages", imageUrl)
+          })
+        }
       } else if (key === "Category") {
         data.append("categoryId", formData.Category.id)
       } else if (key === "Collection") {
         data.append("collectionId", formData.Collection.id)
       } else if (Array.isArray(value)) {
-        // Don't use JSON.stringify for arrays - append each item separately
-        value.forEach((item) => data.append(key, item))
+        // For arrays like sizes, colors, features - join with comma
+        data.append(key, value.join(','))
       } else if (typeof value !== "object") {
         data.append(key, value.toString())
       }
@@ -333,12 +352,12 @@ const AddProductForm: React.FC<AddProductFormProps> = ({ closeModal, editProduct
   }, [dispatch])
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 z-50">
-      <div className="w-full max-w-6xl max-h-[95vh] overflow-hidden">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-1 sm:p-2 md:p-4 z-50">
+      <div className="w-full max-w-xs sm:max-w-2xl md:max-w-4xl lg:max-w-6xl max-h-[95vh] overflow-hidden mx-2 sm:mx-4">
         <Card className="shadow-2xl border-0 bg-background max-h-[90vh] sm:max-h-[95vh]">
           <CardHeader className="bg-muted/40 border-b">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-2xl font-bold flex items-center gap-3">
+              <CardTitle className="text-lg sm:text-xl md:text-2xl font-bold flex items-center gap-2 sm:gap-3">
                 <div className="p-2 bg-primary/10 rounded-lg">
                   <Package className="h-6 w-6 text-primary" />
             </div>
@@ -355,9 +374,9 @@ const AddProductForm: React.FC<AddProductFormProps> = ({ closeModal, editProduct
             </div>
           </CardHeader>
 
-          <CardContent className="p-4 sm:p-6 lg:p-8">
+          <CardContent className="p-2 sm:p-4 md:p-6 lg:p-8">
             <form onSubmit={handleSubmit}>
-              <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
+              <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4 sm:space-y-6 md:space-y-8">
                 <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 bg-muted p-1 rounded-lg">
                   <TabsTrigger
                     value="basic"
