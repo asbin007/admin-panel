@@ -87,6 +87,7 @@ function AdminOrderDetail() {
           console.log('🔄 OrderDetail: Updating local state for order:', id);
           // Update local state immediately for instant UI feedback
           if (orderData.status) {
+            console.log('🔄 OrderDetail: Setting local order status to:', orderData.status);
             setLocalOrderStatus(orderData.status);
           }
           // Only refresh if we need to sync with server data
@@ -104,6 +105,7 @@ function AdminOrderDetail() {
           console.log('💰 OrderDetail: Updating local state for order:', id);
           // Update local state immediately for instant UI feedback
           if (paymentData.status) {
+            console.log('💰 OrderDetail: Setting local payment status to:', paymentData.status);
             setLocalPaymentStatus(paymentData.status);
           }
           // Only refresh if we need to sync with server data
@@ -487,7 +489,7 @@ function AdminOrderDetail() {
               <h1 className="text-3xl font-bold tracking-tight">
                 Order #{order.orderId}
               </h1>
-              {getStatusBadge(order.Order.status)}
+              {getStatusBadge(localOrderStatus || order.Order.status)}
               <Badge 
                 variant={getWebSocketStatus() === 'connected' ? "default" : "secondary"} 
                 className="text-xs"
@@ -624,7 +626,7 @@ function AdminOrderDetail() {
               </div>
                 <div className="flex justify-between items-center">
                   <span>Status</span>
-                  {getPaymentStatusBadge(order.Order.Payment.paymentStatus)}
+                  {getPaymentStatusBadge(localPaymentStatus || order.Order.Payment.paymentStatus)}
                 </div>
               </CardContent>
             </Card>
@@ -684,7 +686,7 @@ function AdminOrderDetail() {
                   <div className="space-y-3">
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-muted-foreground">Order Progress</span>
-                      <span className="font-medium capitalize">{order.Order.status}</span>
+                      <span className="font-medium capitalize">{localOrderStatus || order.Order.status}</span>
                       {isUpdating && (
                         <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
                       )}
@@ -700,8 +702,9 @@ function AdminOrderDetail() {
                           { value: 'delivered', label: 'Delivered', icon: CheckCircle, position: 75 }
                         ].map((step) => {
                           const Icon = step.icon;
-                          const isCompleted = getStatusProgress(order.Order.status) >= step.position;
-                          const isCurrent = order.Order.status === step.value;
+                          const currentStatus = localOrderStatus || order.Order.status;
+                          const isCompleted = getStatusProgress(currentStatus) >= step.position;
+                          const isCurrent = currentStatus === step.value;
                           const isCancelled = order.Order.status === 'cancelled';
                           const isClickable = !isUpdating && !isCancelled;
                           
@@ -778,9 +781,10 @@ function AdminOrderDetail() {
                             { position: 50, status: 'ontheway' },
                             { position: 75, status: 'delivered' }
                           ].map((checkpoint) => {
-                            const isCompleted = getStatusProgress(order.Order.status) >= checkpoint.position;
-                            const isCancelled = order.Order.status === 'cancelled';
-                            const isClickable = !isUpdating && !isCancelled && checkpoint.status !== order.Order.status;
+                            const currentStatus = localOrderStatus || order.Order.status;
+                            const isCompleted = getStatusProgress(currentStatus) >= checkpoint.position;
+                            const isCancelled = currentStatus === 'cancelled';
+                            const isClickable = !isUpdating && !isCancelled && checkpoint.status !== currentStatus;
                             
                             return (
                               <div
