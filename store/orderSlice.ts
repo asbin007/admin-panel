@@ -260,19 +260,16 @@ export function updateOrderStatus(orderId: string, status: string, userId: strin
     console.log('🌐 WebSocket not available, using API update');
     try {
       console.log('📤 Sending order status update:', { orderId, status });
-      // Try multiple endpoints
-      let response;
-      try {
-        response = await APIS.patch(`/order/admin/change-status/${orderId}`, { status });
-      } catch (firstError) {
-        console.log('Trying /order/change-status endpoint...');
-        try {
-          response = await APIS.patch(`/order/change-status/${orderId}`, { status });
-        } catch (secondError) {
-          console.log('Trying /admin/order/update endpoint...');
-          response = await APIS.patch(`/admin/order/update/${orderId}`, { status });
-        }
-      }
+      console.log('📤 Request payload:', { orderStatus: status });
+      console.log('📤 Request URL:', `/order/admin/change-status/${orderId}`);
+      
+      // Check authentication token
+      const token = localStorage.getItem("tokenauth");
+      console.log('🔐 Auth token exists:', !!token);
+      console.log('🔐 Auth token length:', token?.length || 0);
+      
+      // Use the working endpoint only - backend expects 'orderStatus' field
+      const response = await APIS.patch(`/order/admin/change-status/${orderId}`, { orderStatus: status });
       
       if (response && (response.status === 200 || response.status === 201)) {
         console.log('✅ Order status updated via API');
@@ -298,20 +295,25 @@ export function updateOrderStatus(orderId: string, status: string, userId: strin
             data: apiError.config?.data
           }
         });
+
+        // Handle specific business logic errors
+        if (apiError.response.status === 400) {
+          const errorData = apiError.response.data;
+          if (errorData?.message?.includes('Cannot deliver order without payment')) {
+            return { success: false, error: 'Cannot deliver order without payment. Payment must be completed first.' };
+          }
+          if (errorData?.message?.includes('Cannot prepare order without payment')) {
+            return { success: false, error: 'Cannot prepare order without payment. Payment must be completed first.' };
+          }
+          if (errorData?.message?.includes('Invalid status transition')) {
+            return { success: false, error: `Invalid status transition: ${errorData.message}` };
+          }
+          if (errorData?.message?.includes('Please provide orderId and orderStatus')) {
+            return { success: false, error: 'Missing required fields. Please try again.' };
+          }
+        }
       }
       
-      // Try alternative API endpoint format
-      try {
-        console.log('🔄 Trying alternative API endpoint format');
-        const altResponse = await APIS.put(`/order/${orderId}/status`, { status });
-        if (altResponse.status === 200) {
-          console.log('✅ Order status updated via alternative API');
-          dispatch(fetchAdminOrderDetails(orderId));
-          return { success: true, method: 'api-alt' };
-        }
-      } catch (altError: any) {
-        console.error("❌ Alternative API also failed:", altError);
-      }
       
       // Final fallback to local update
       try {
@@ -410,19 +412,17 @@ export function updatePaymentStatus(orderId: string, paymentId: string, status: 
     // Fallback to API update
     console.log('🌐 WebSocket not available, using API update');
     try {
-      // Try multiple endpoints
-      let response;
-      try {
-        response = await APIS.patch(`/order/admin/change-payment-status/${paymentId}`, { status });
-      } catch (firstError) {
-        console.log('Trying /payment/change-status endpoint...');
-        try {
-          response = await APIS.patch(`/payment/change-status/${paymentId}`, { status });
-        } catch (secondError) {
-          console.log('Trying /admin/payment/update endpoint...');
-          response = await APIS.patch(`/admin/payment/update/${paymentId}`, { status });
-        }
-      }
+      console.log('📤 Sending payment status update:', { orderId, paymentId, status });
+      console.log('📤 Request payload:', { status });
+      console.log('📤 Request URL:', `/order/admin/change-payment-status/${paymentId}`);
+      
+      // Check authentication token
+      const token = localStorage.getItem("tokenauth");
+      console.log('🔐 Auth token exists:', !!token);
+      console.log('🔐 Auth token length:', token?.length || 0);
+      
+      // Use the working endpoint only
+      const response = await APIS.patch(`/order/admin/change-payment-status/${paymentId}`, { status });
       
       if (response && (response.status === 200 || response.status === 201)) {
         console.log('✅ Payment status updated via API');
@@ -443,6 +443,23 @@ export function updatePaymentStatus(orderId: string, paymentId: string, status: 
           data: apiError.response.data,
           message: apiError.response.data?.message || 'Unknown API error'
         });
+
+        // Handle specific business logic errors for payment status
+        if (apiError.response.status === 400) {
+          const errorData = apiError.response.data;
+          if (errorData?.message?.includes('Cannot change payment status from \'paid\' to \'unpaid\' for delivered orders')) {
+            return { success: false, error: 'Cannot change payment status from paid to unpaid for delivered orders.' };
+          }
+          if (errorData?.message?.includes('Cannot change payment status from \'paid\' to \'unpaid\' for orders that are on the way')) {
+            return { success: false, error: 'Cannot change payment status from paid to unpaid for orders that are on the way.' };
+          }
+          if (errorData?.message?.includes('Please provide paymentId and status')) {
+            return { success: false, error: 'Missing required fields. Please try again.' };
+          }
+          if (errorData?.message?.includes('Payment not found')) {
+            return { success: false, error: 'Payment not found. Please refresh and try again.' };
+          }
+        }
       }
       
       // Final fallback to local update

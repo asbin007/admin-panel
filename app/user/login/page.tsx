@@ -86,9 +86,9 @@ export default function LoginForm() {
         
         setSuccess("Login successful! Redirecting...");
         console.log('Login successful, redirecting to dashboard...');
-        setTimeout(() => {
-          router.push("/dashboard");
-        }, 1500);
+        
+        // Immediate redirect without delay
+        router.push("/dashboard");
       } else {
         setError("Invalid email or password");
         console.log('Login failed, status:', currentStatus);

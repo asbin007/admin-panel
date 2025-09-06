@@ -75,10 +75,14 @@ export default userSlice.reducer;
 export function loginUser(data:  { email: string; password: string }) {
   return async function loginUserThunk(dispatch: AppDispatch) {
     try {
+      console.log('🔐 Login attempt for:', data.email);
       const response = await API.post("/auth/logins", data);
+      console.log('📡 Login response status:', response.status);
+      console.log('📡 Login response data:', response.data);
+      
       if (response.status === 201) {
         dispatch(setStatus(Status.SUCCESS));
-        console.log("res", response.data);
+        console.log("✅ Login successful, response data:", response.data);
         const token =
           response.data.token || response.data.session?.access_token;
           const userId=response.data.user?.id ??'default'
@@ -93,15 +97,32 @@ export function loginUser(data:  { email: string; password: string }) {
             console.log('AuthSlice: Token stored in localStorage');
           }
           dispatch(setToken({token,id:userId}));
+
+          // Set user data in Redux store
+          const userData = [{
+            id: userId,
+            username: response.data.user?.username || data.email.split('@')[0],
+            email: data.email,
+            role: response.data.user?.role || 'admin',
+            password: null,
+            token: token
+          }];
+          dispatch(setUsers(userData));
+          console.log('AuthSlice: User data set:', userData);
+
           return token
         } else {
+          console.log('❌ No token or user ID received');
           dispatch(setStatus(Status.ERROR));
         }
       } else {
+        console.log('❌ Login failed, status code:', response.status);
         dispatch(setStatus(Status.ERROR));
       }
-    } catch (error) {
-      console.log(error);
+    } catch (error: any) {
+      console.log('❌ Login error:', error);
+      console.log('❌ Error response:', error.response?.data);
+      console.log('❌ Error status:', error.response?.status);
       dispatch(setStatus(Status.ERROR));
     }
   };
