@@ -52,6 +52,7 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
     
     let reconnectTimeout: NodeJS.Timeout;
     let connectionCheckTimeout: NodeJS.Timeout;
+    //
     
     const testConnection = async () => {
       try {
