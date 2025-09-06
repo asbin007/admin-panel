@@ -506,7 +506,7 @@ function AdminOrderDetail() {
                             }.jpg`
                           : '/placeholder-image.svg'
                         }
-                        alt={item.Shoe.name}
+                        alt={item.Shoe?.name || 'Product'}
                         width={64}
                         height={64}
                         className="w-full h-full object-cover rounded-lg"
@@ -516,16 +516,16 @@ function AdminOrderDetail() {
                       />
                     </div>
                     <div className="flex-1">
-                      <h3 className="font-semibold">{item.Shoe.name}</h3>
+                      <h3 className="font-semibold">{item.Shoe?.name || 'Unknown Product'}</h3>
                       <p className="text-sm text-muted-foreground">
-                        Category: {item.Shoe.Category.categoryName}
+                        Category: {item.Shoe?.Category?.categoryName || 'Unknown Category'}
                       </p>
                     </div>
                     <div className="text-right">
-                      <p className="font-semibold">Rs {item.Shoe.price}</p>
+                      <p className="font-semibold">Rs {item.Shoe?.price || 0}</p>
                       <p className="text-sm text-muted-foreground">Qty: {item.quantity}</p>
                       <p className="font-semibold text-primary">
-                        Rs {(item.quantity * item.Shoe.price).toFixed(2)}
+                        Rs {((item.quantity || 0) * (item.Shoe?.price || 0)).toFixed(2)}
                       </p>
                     </div>
                   </div>
