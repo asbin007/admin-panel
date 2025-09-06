@@ -147,43 +147,110 @@ export function fetchUsers() {
 }
 
 export function deleteUserById(id: string) {
-  return async function deleteUserByIdThunk(dispatch: AppDispatch) {
+  return async function deleteUserByIdThunk(dispatch: AppDispatch, getState: () => any) {
     try {
-      console.log("Deleting user with ID:", id);
+      console.log("🗑️ Attempting to delete user with ID:", id);
+      console.log("🌐 API Base URL:", "https://nike-backend-1-g9i6.onrender.com/api");
+      console.log("🔗 Full delete URL:", `https://nike-backend-1-g9i6.onrender.com/api/auth/users/${id}`);
       
-      // Optimistically update UI first
-      dispatch(deleteUser(id));
-      dispatch(setStatus(Status.SUCCESS));
+      // Check if user is authenticated
+      const token = localStorage.getItem("tokenauth");
+      console.log("🔑 Auth token present:", !!token);
       
-      const response = await APIS.delete("/auth/users/" + id);
+      // Don't do optimistic update - wait for API response first
+      dispatch(setStatus(Status.LOADING));
       
-      console.log("Delete response:", response.status, response.data);
+      // Add request timeout and better error handling
+      const response = await APIS.delete("/auth/users/" + id, {
+        timeout: 10000 // 10 second timeout
+        // Headers are already set by APIS interceptor
+      });
+      
+      console.log("✅ Delete response received:", {
+        status: response.status,
+        statusText: response.statusText,
+        data: response.data,
+        headers: response.headers
+      });
       
       if (response.status === 200 || response.status === 204) {
-        // User already removed from UI, just return success
-        return response.data;
+        // API success - now remove from UI
+        dispatch(deleteUser(id));
+        dispatch(setStatus(Status.SUCCESS));
+        console.log("✅ User deleted successfully from backend");
+        return { success: true, data: response.data };
       } else {
-        // If API fails, we need to revert the optimistic update
+        // If API returns unexpected status
+        console.log("❌ Unexpected API response status:", response.status);
         dispatch(setStatus(Status.ERROR));
         throw new Error(response.data?.message || "Failed to delete user");
       }
     } catch (error: any) {
-      console.error("Error deleting user:", error);
-      console.error("Error details:", {
+      console.error("❌ Error deleting user:", error);
+      
+      // Detailed error logging
+      const errorDetails = {
         message: error.message,
+        code: error.code,
         status: error.response?.status,
+        statusText: error.response?.statusText,
         data: error.response?.data,
         config: {
           url: error.config?.url,
           method: error.config?.method,
-          headers: error.config?.headers
+          headers: error.config?.headers,
+          timeout: error.config?.timeout
         }
-      });
+      };
+      
+      console.error("🔍 Detailed error information:", errorDetails);
+      
+      // Log the actual backend response data for debugging
+      if (error.response?.data) {
+        console.error("📋 Backend error response data:", JSON.stringify(error.response.data, null, 2));
+      }
       
       dispatch(setStatus(Status.ERROR));
-      throw new Error(
-        error.response?.data?.message || error.message || "Failed to delete user"
-      );
+      
+      // Provide specific error messages based on status code
+      let errorMessage = "Failed to delete user";
+      
+      if (error.code === 'ECONNABORTED') {
+        errorMessage = "Request timeout. The server is taking too long to respond.";
+      } else if (error.code === 'ERR_NETWORK') {
+        errorMessage = "Network error. Please check your internet connection.";
+      } else if (error.response?.status === 500) {
+        // Check if it's a foreign key constraint error
+        const errorData = error.response?.data;
+        if (errorData?.message && errorData.message.includes('foreign key constraint')) {
+          errorMessage = "Cannot delete user because they have related data (chats, orders, etc.). Please contact support.";
+        } else if (errorData?.message && errorData.message.includes('Internal server error while deleting user')) {
+          errorMessage = "Cannot delete user because they have related data. The backend encountered a database constraint error.";
+        } else {
+          errorMessage = "Server error (500). The backend server encountered an internal error. Please try again later.";
+        }
+        console.error("🚨 Backend server error - check Render logs");
+      } else if (error.response?.status === 404) {
+        errorMessage = "User not found. It may have already been deleted.";
+      } else if (error.response?.status === 403) {
+        errorMessage = "You don't have permission to delete this user.";
+      } else if (error.response?.status === 400) {
+        // Check for specific backend error messages
+        const errorData = error.response?.data;
+        if (errorData?.message) {
+          errorMessage = errorData.message;
+        } else if (errorData?.error) {
+          errorMessage = errorData.error;
+        } else if (errorData?.details) {
+          errorMessage = errorData.details;
+        } else {
+          errorMessage = "Cannot delete this user due to existing dependencies or validation errors.";
+        }
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      }
+      
+      throw new Error(errorMessage);
     }
   };
 }

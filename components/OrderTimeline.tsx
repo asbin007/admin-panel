@@ -3,6 +3,7 @@
 import React from 'react';
 import { CheckCircle, Clock, Package, Truck, Home, XCircle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { isValidStatusTransition, type OrderStatus } from '@/utils/orderStatusValidation';
 
 interface OrderTimelineProps {
   currentStatus: string;
@@ -73,9 +74,17 @@ const OrderTimeline: React.FC<OrderTimelineProps> = ({
   const isCurrent = (index: number) => index === currentLevelIndex;
   const isCancelled = currentStatus && typeof currentStatus === 'string' && currentStatus.toLowerCase() === 'cancelled';
 
+  // Use the centralized validation utility
+  const checkStatusTransition = (fromStatus: string, toStatus: string): boolean => {
+    return isValidStatusTransition(fromStatus as OrderStatus, toStatus as OrderStatus);
+  };
+
   const handleStatusClick = (statusKey: string) => {
     if (isAdmin && onStatusChange && currentStatus && statusKey !== currentStatus.toLowerCase()) {
-      onStatusChange(statusKey);
+      // Check if the transition is valid
+      if (checkStatusTransition(currentStatus.toLowerCase(), statusKey)) {
+        onStatusChange(statusKey);
+      }
     }
   };
 
@@ -99,6 +108,8 @@ const OrderTimeline: React.FC<OrderTimelineProps> = ({
           const completed = isCompleted(index);
           const current = isCurrent(index);
           const cancelled = isCancelled && level.key === 'cancelled';
+          const isValidTransition = isAdmin ? checkStatusTransition(currentStatus.toLowerCase(), level.key) : true;
+          const isDisabled = isAdmin && !isValidTransition && level.key !== currentStatus.toLowerCase();
           
           return (
             <div key={level.key} className="relative flex items-start pb-8 last:pb-0">
@@ -111,9 +122,11 @@ const OrderTimeline: React.FC<OrderTimelineProps> = ({
                     ? cancelled
                       ? 'bg-red-500 border-red-500 text-white'
                       : `${level.bgColor} border-current ${level.color}`
-                    : 'bg-gray-100 border-gray-300 text-gray-400'
+                    : isDisabled
+                      ? 'bg-gray-100 border-gray-300 text-gray-300 cursor-not-allowed opacity-50'
+                      : 'bg-gray-100 border-gray-300 text-gray-400'
                 }
-                ${isAdmin ? 'cursor-pointer hover:scale-110' : ''}
+                ${isAdmin && !isDisabled ? 'cursor-pointer hover:scale-110' : ''}
               `}
               onClick={() => handleStatusClick(level.key)}
               >
@@ -196,20 +209,29 @@ const OrderTimeline: React.FC<OrderTimelineProps> = ({
           <div className="flex flex-wrap gap-2">
             {statusLevels.map((level) => {
               const isCurrentStatus = level.key === currentStatus.toLowerCase();
+              const isValidTransition = checkStatusTransition(currentStatus.toLowerCase(), level.key);
+              const isDisabled = isCurrentStatus || !isValidTransition;
+              
               return (
                 <button
                   key={level.key}
                   onClick={() => handleStatusClick(level.key)}
-                  disabled={isCurrentStatus}
+                  disabled={isDisabled}
                   className={`
                     px-3 py-1.5 text-xs font-medium rounded-full transition-all duration-200
                     ${isCurrentStatus
                       ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
-                      : `hover:scale-105 ${level.bgColor} ${level.color} hover:shadow-md`
+                      : !isValidTransition
+                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed opacity-50'
+                        : `hover:scale-105 ${level.bgColor} ${level.color} hover:shadow-md`
                     }
                   `}
+                  title={!isValidTransition ? `Cannot change from ${currentStatus} to ${level.label}` : ''}
                 >
                   {level.label}
+                  {!isValidTransition && !isCurrentStatus && (
+                    <span className="ml-1 text-xs">(Not available)</span>
+                  )}
                 </button>
               );
             })}

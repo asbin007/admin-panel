@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { Loader2, CheckCircle, XCircle } from 'lucide-react';
 import OrderTimeline from './OrderTimeline';
+import { isValidStatusTransition, type OrderStatus } from '@/utils/orderStatusValidation';
 
 interface OrderStatusManagerProps {
   orderId: string;
@@ -104,16 +105,34 @@ const OrderStatusManager: React.FC<OrderStatusManagerProps> = ({
     }
   }, [orderId, onRefresh]);
 
+  // Use the centralized validation utility
+  const checkStatusTransition = (fromStatus: string, toStatus: string): boolean => {
+    return isValidStatusTransition(fromStatus as OrderStatus, toStatus as OrderStatus);
+  };
+
   const statusOptions = [
     { value: 'pending', label: 'Pending', color: 'bg-gray-500' },
     { value: 'preparation', label: 'Preparation', color: 'bg-blue-500' },
     { value: 'ontheway', label: 'On the Way', color: 'bg-yellow-500' },
     { value: 'delivered', label: 'Delivered', color: 'bg-green-500' },
     { value: 'cancelled', label: 'Cancelled', color: 'bg-red-500' }
-  ];
+  ].map(option => ({
+    ...option,
+    disabled: !checkStatusTransition(currentStatus, option.value)
+  }));
 
   const handleStatusUpdate = async (newStatus: string) => {
     if (newStatus === localOrderStatus || !localOrderStatus) return;
+
+    // Check if the transition is valid
+    if (!checkStatusTransition(currentStatus, newStatus)) {
+      setUpdateMessage({ 
+        type: 'error', 
+        text: `Cannot change status from ${currentStatus} to ${newStatus}` 
+      });
+      setTimeout(() => setUpdateMessage(null), 3000);
+      return;
+    }
 
     setIsUpdating(true);
     setUpdateMessage(null);
@@ -232,10 +251,18 @@ const OrderStatusManager: React.FC<OrderStatusManagerProps> = ({
                   </SelectTrigger>
                   <SelectContent>
                     {statusOptions.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
+                      <SelectItem 
+                        key={option.value} 
+                        value={option.value}
+                        disabled={option.disabled}
+                        className={option.disabled ? 'opacity-50 cursor-not-allowed' : ''}
+                      >
                         <div className="flex items-center gap-2">
                           <div className={`w-2 h-2 rounded-full ${option.color}`}></div>
                           {option.label}
+                          {option.disabled && (
+                            <span className="text-xs text-gray-400 ml-1">(Not available)</span>
+                          )}
                         </div>
                       </SelectItem>
                     ))}
