@@ -40,10 +40,12 @@ import { Input } from "@/components/ui/input";
 import { toast } from "react-hot-toast";
 import { fetchCategoryItems, handleCategoryItemDelete, addCategory, handleUpdateCategory } from "@/store/categoriesSlice";
 import { Status } from "@/store/authSlice";
+import { useRouter } from "next/navigation";
 
 export default function CategoryTable() {
   const { items, status } = useAppSelector((store) => store.category);
   const dispatch = useAppDispatch();
+  const router = useRouter();
   const [categoryName, setCategoryName] = useState("");
   const [editCategoryId, setEditCategoryId] = useState<string | null>(null);
   const [openDialog, setOpenDialog] = useState(false);
@@ -65,6 +67,7 @@ export default function CategoryTable() {
           setEditCategoryId(null);
           setCategoryName("");
           setOpenDialog(false); // Close dialog after successful update
+          router.refresh(); // Refresh page to show updated data
         })
         .catch((error) => {
           toast.error(error.message || "Failed to update category");
@@ -75,6 +78,7 @@ export default function CategoryTable() {
           toast.success("Category added successfully");
           setCategoryName("");
           setOpenDialog(false);
+          router.refresh(); // Refresh page to show new data
         })
         .catch((error) => {
           toast.error(error.message || "Failed to add category");
@@ -87,6 +91,7 @@ export default function CategoryTable() {
       .then(() => {
         toast.success("Category deleted successfully");
         setOpenDialog(false); // Close dialog if open
+        router.refresh(); // Refresh page to show updated data
       })
       .catch((error) => {
         toast.error(error.message || "Failed to delete category");
