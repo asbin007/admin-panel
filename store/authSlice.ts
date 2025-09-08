@@ -85,12 +85,22 @@ export function loginUser(data:  { email: string; password: string }) {
         console.log("✅ Login successful, response data:", response.data);
         const token =
           response.data.token || response.data.session?.access_token;
-          const userId=response.data.user?.id ??'default'
+        const userId = response.data.user?.id ?? 'default';
+        const userRole = response.data.user?.role || 'admin';
 
-        if (token &&userId) {
+        if (token && userId) {
           console.log('AuthSlice: Storing token:', token);
           console.log('AuthSlice: User ID:', userId);
-          Cookies.set("tokenauth", token,{expires:7});
+          console.log('AuthSlice: User Role:', userRole);
+          
+          // Check if user is admin
+          if (userRole !== 'admin') {
+            console.log('❌ Access denied: User is not admin');
+            dispatch(setStatus(Status.ERROR));
+            throw new Error('Access denied. Admin role required.');
+          }
+          
+          Cookies.set("tokenauth", token, {expires:7});
           // Also store in localStorage for WebSocket compatibility
           if (typeof window !== 'undefined') {
             localStorage.setItem("tokenauth", token);
@@ -103,7 +113,7 @@ export function loginUser(data:  { email: string; password: string }) {
             id: userId,
             username: response.data.user?.username || data.email.split('@')[0],
             email: data.email,
-            role: response.data.user?.role || 'admin',
+            role: userRole,
             password: null,
             token: token
           }];

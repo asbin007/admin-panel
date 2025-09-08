@@ -19,10 +19,29 @@ import {
 } from "@/components/ui/table";
 import AdminLayout from "../adminLayout/adminLayout";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
-import { useEffect } from "react";
-import { fetchOrders } from "@/store/orderSlice";
+import { useEffect, useState } from "react";
+import { fetchOrders, deleteOrder, bulkDeleteOrders, type IOrder } from "@/store/orderSlice";
 import { socket } from "@/app/app";
 import Link from "next/link";
+import { Trash2, MoreHorizontal, CheckSquare, Square } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { toast } from "sonner";
 
 // Enums
 enum OrderStatus {
@@ -47,6 +66,13 @@ enum PaymentStatus {
 export default function Orders() {
   const dispatch = useAppDispatch();
   const { items, status } = useAppSelector((store) => store.orders);
+  
+  // Delete functionality state
+  const [selectedOrders, setSelectedOrders] = useState<string[]>([]);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
+  const [orderToDelete, setOrderToDelete] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     dispatch(fetchOrders());
@@ -121,6 +147,75 @@ export default function Orders() {
     );
   };
 
+  // Delete handlers
+  const handleDeleteOrder = async (orderId: string) => {
+    try {
+      setIsDeleting(true);
+      const result = await dispatch(deleteOrder(orderId));
+      
+      if (result.success) {
+        toast.success("Order deleted successfully");
+        setDeleteDialogOpen(false);
+        setOrderToDelete(null);
+      } else {
+        toast.error(result.error || "Failed to delete order");
+      }
+    } catch {
+      toast.error("Failed to delete order");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleBulkDeleteOrders = async () => {
+    if (selectedOrders.length === 0) return;
+    
+    try {
+      setIsDeleting(true);
+      const result = await dispatch(bulkDeleteOrders(selectedOrders));
+      
+      if (result.success) {
+        toast.success(`${result.deletedCount || selectedOrders.length} orders deleted successfully`);
+        setBulkDeleteDialogOpen(false);
+        setSelectedOrders([]);
+      } else {
+        toast.error(result.error || "Failed to delete orders");
+      }
+    } catch {
+      toast.error("Failed to delete orders");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleSelectOrder = (orderId: string) => {
+    setSelectedOrders(prev => 
+      prev.includes(orderId) 
+        ? prev.filter(id => id !== orderId)
+        : [...prev, orderId]
+    );
+  };
+
+  const handleSelectAllOrders = () => {
+    if (selectedOrders.length === items.length) {
+      setSelectedOrders([]);
+    } else {
+      setSelectedOrders(items.map(order => order.id));
+    }
+  };
+
+  const canDeleteOrder = (order: IOrder) => {
+    const orderStatus = order.orderStatus || order.status;
+    return orderStatus !== OrderStatus.Delivered;
+  };
+
+  const canDeleteSelectedOrders = () => {
+    return selectedOrders.every(orderId => {
+      const order = items.find(o => o.id === orderId);
+      return order && canDeleteOrder(order);
+    });
+  };
+
   if (status === "loading") {
     return (
       <AdminLayout>
@@ -190,6 +285,11 @@ export default function Orders() {
             <Badge variant="outline" className="text-sm">
               {items.length} Total Orders
             </Badge>
+            {selectedOrders.length > 0 && (
+              <Badge variant="destructive" className="text-sm">
+                {selectedOrders.length} Selected
+              </Badge>
+            )}
             <button 
               onClick={() => {
                 console.log('🔄 Manual refresh triggered');
@@ -199,6 +299,18 @@ export default function Orders() {
             >
               🔄 Refresh
             </button>
+            {selectedOrders.length > 0 && (
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => setBulkDeleteDialogOpen(true)}
+                disabled={!canDeleteSelectedOrders()}
+                className="flex items-center gap-2"
+              >
+                <Trash2 className="h-4 w-4" />
+                Delete Selected ({selectedOrders.length})
+              </Button>
+            )}
           </div>
         </div>
         
@@ -212,18 +324,31 @@ export default function Orders() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-12">
+                  <button
+                    onClick={handleSelectAllOrders}
+                    className="flex items-center justify-center w-4 h-4"
+                  >
+                    {selectedOrders.length === items.length ? (
+                      <CheckSquare className="h-4 w-4 text-primary" />
+                    ) : (
+                      <Square className="h-4 w-4 text-muted-foreground" />
+                    )}
+                  </button>
+                </TableHead>
                 <TableHead>Order ID</TableHead>
                 <TableHead>Items</TableHead>
                 <TableHead>Payment Method</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Payment Status</TableHead>
                 <TableHead className="text-right">Amount</TableHead>
+                <TableHead className="w-12">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {items.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8">
+                  <TableCell colSpan={8} className="text-center py-8">
                     <div className="text-center">
                       <p className="text-muted-foreground mb-2">No orders found</p>
                       <p className="text-sm text-muted-foreground">
@@ -241,6 +366,19 @@ export default function Orders() {
                 )
                   .map((order, index) => (
                   <TableRow key={`${order.id}-${index}`}>
+                    <TableCell>
+                      <button
+                        onClick={() => handleSelectOrder(order.id)}
+                        className="flex items-center justify-center w-4 h-4"
+                        disabled={!canDeleteOrder(order)}
+                      >
+                        {selectedOrders.includes(order.id) ? (
+                          <CheckSquare className="h-4 w-4 text-primary" />
+                        ) : (
+                          <Square className={`h-4 w-4 ${canDeleteOrder(order) ? 'text-muted-foreground' : 'text-muted-foreground/50'}`} />
+                        )}
+                      </button>
+                    </TableCell>
                     <TableCell className="font-medium">
                       <Link href={`/orders/${order.id}`} className="text-primary hover:underline">
                         #{order.id}
@@ -255,6 +393,33 @@ export default function Orders() {
                     <TableCell className="text-right">
                       Rs {order.totalPrice.toFixed(2)}
                     </TableCell>
+                    <TableCell>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem asChild>
+                            <Link href={`/orders/${order.id}`} className="flex items-center">
+                              View Details
+                            </Link>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => {
+                              setOrderToDelete(order.id);
+                              setDeleteDialogOpen(true);
+                            }}
+                            disabled={!canDeleteOrder(order)}
+                            className="text-destructive focus:text-destructive"
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Delete Order
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
                   </TableRow>
                 ))
               )}
@@ -264,6 +429,58 @@ export default function Orders() {
         </CardContent>
       </Card>
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Order</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this order? This action cannot be undone.
+              {orderToDelete && (
+                <div className="mt-2 p-2 bg-muted rounded text-sm">
+                  Order ID: {orderToDelete}
+                </div>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => orderToDelete && handleDeleteOrder(orderToDelete)}
+              disabled={isDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeleting ? "Deleting..." : "Delete Order"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Bulk Delete Confirmation Dialog */}
+      <AlertDialog open={bulkDeleteDialogOpen} onOpenChange={setBulkDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Multiple Orders</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete {selectedOrders.length} selected orders? This action cannot be undone.
+              <div className="mt-2 p-2 bg-muted rounded text-sm">
+                Selected Orders: {selectedOrders.length}
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleBulkDeleteOrders}
+              disabled={isDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeleting ? "Deleting..." : `Delete ${selectedOrders.length} Orders`}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AdminLayout>
   );
 }

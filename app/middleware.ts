@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import jwt from "jsonwebtoken";
 
 export function middleware(request: NextRequest) {
   const token = request.cookies.get("tokenauth")?.value;
@@ -21,6 +22,20 @@ export function middleware(request: NextRequest) {
     
     if (!token) {
       console.log('Middleware: No token found, redirecting to login');
+      return NextResponse.redirect(new URL("/user/login", request.url));
+    }
+
+    // Verify token and check role
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRETE_KEY || 'fallback-secret') as { role?: string };
+      
+      // Check if user has admin role
+      if (decoded.role !== 'admin') {
+        console.log('Middleware: User is not admin, redirecting to customer frontend');
+        return NextResponse.redirect(new URL("https://nike-frontend.vercel.app", request.url));
+      }
+    } catch {
+      console.log('Middleware: Invalid token, redirecting to login');
       return NextResponse.redirect(new URL("/user/login", request.url));
     }
   }

@@ -21,7 +21,7 @@ const nextConfig: NextConfig = {
   },
   // Suppress hydration warnings for browser extensions
   reactStrictMode: true,
-  // Webpack configuration to fix module resolution issues
+  // Fix chunk loading timeout issues
   webpack: (config, { dev, isServer }) => {
     // Fix for module resolution issues
     if (!isServer) {
@@ -34,7 +34,29 @@ const nextConfig: NextConfig = {
       };
     }
     
+    // Fix chunk loading timeout
+    config.optimization = {
+      ...config.optimization,
+      splitChunks: {
+        ...config.optimization.splitChunks,
+        cacheGroups: {
+          ...config.optimization.splitChunks?.cacheGroups,
+          default: {
+            ...config.optimization.splitChunks?.cacheGroups?.default,
+            minChunks: 1,
+            priority: -20,
+            reuseExistingChunk: true,
+          },
+        },
+      },
+    };
+    
     return config;
+  },
+  // Add timeout configuration
+  onDemandEntries: {
+    maxInactiveAge: 25 * 1000,
+    pagesBufferLength: 2,
   },
 };
 

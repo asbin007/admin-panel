@@ -2,6 +2,7 @@
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { AppProviders } from "./app";
+import { Suspense } from "react";
   
 
   const geistSans = Geist({
@@ -63,9 +64,15 @@ import { AppProviders } from "./app";
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
         suppressHydrationWarning={true}
       >
-        <AppProviders>
-          {children}
-        </AppProviders>
+        <Suspense fallback={
+          <div className="flex items-center justify-center min-h-screen">
+            <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900"></div>
+          </div>
+        }>
+          <AppProviders>
+            {children}
+          </AppProviders>
+        </Suspense>
       </body>
     </html>
   );

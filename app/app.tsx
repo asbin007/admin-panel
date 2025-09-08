@@ -4,10 +4,79 @@ import { Provider } from 'react-redux';
 import store from '@/store/store';
 import { ThemeProvider } from '@/components/ui/theme-provider';
 import io from 'socket.io-client';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Component } from 'react';
 
 // Socket URL configuration
 const SOCKET_URL = "https://nike-backend-1-g9i6.onrender.com";
+
+// Error Boundary Component
+interface ErrorBoundaryState {
+  hasError: boolean;
+  hasChunkError: boolean;
+}
+
+interface ErrorBoundaryProps {
+  children: React.ReactNode;
+}
+
+class ChunkLoadErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  constructor(props: ErrorBoundaryProps) {
+    super(props);
+    this.state = { hasError: false, hasChunkError: false };
+  }
+
+  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+    // Check if it's a chunk load error
+    if (error.message.includes('Loading chunk') || error.message.includes('ChunkLoadError')) {
+      return { hasChunkError: true, hasError: false };
+    }
+    return { hasError: true, hasChunkError: false };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error('Chunk Load Error:', error, errorInfo);
+    
+    // If it's a chunk load error, reload the page
+    if (error.message.includes('Loading chunk') || error.message.includes('ChunkLoadError')) {
+      setTimeout(() => {
+        window.location.reload();
+      }, 1000);
+    }
+  }
+
+  render() {
+    if (this.state.hasChunkError) {
+      return (
+        <div className="flex items-center justify-center min-h-screen bg-gray-50">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">Loading Application...</h2>
+            <p className="text-gray-600">Please wait while we load the latest version.</p>
+          </div>
+        </div>
+      );
+    }
+
+    if (this.state.hasError) {
+      return (
+        <div className="flex items-center justify-center min-h-screen bg-gray-50">
+          <div className="text-center">
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">Something went wrong</h2>
+            <p className="text-gray-600 mb-4">Please refresh the page to try again.</p>
+            <button 
+              onClick={() => window.location.reload()}
+              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+            >
+              Refresh Page
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
 
 // Create socket instance with better configuration
 export const socket = io(SOCKET_URL, {
@@ -315,15 +384,17 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
   }, [connectionStatus, isWebSocketEnabled]);
 
   return (
-    <Provider store={store}>
-      <ThemeProvider
-        attribute="class"
-        defaultTheme="system"
-        enableSystem
-        disableTransitionOnChange
-      >
-        {children}
-      </ThemeProvider>
-    </Provider>
+    <ChunkLoadErrorBoundary>
+      <Provider store={store}>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          {children}
+        </ThemeProvider>
+      </Provider>
+    </ChunkLoadErrorBoundary>
   );
 }

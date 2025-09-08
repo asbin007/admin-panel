@@ -59,7 +59,7 @@ export interface IOrderDetail {
   };
 }
 
-interface IOrder {
+export interface IOrder {
   id: string;
   totalPrice: number;
   status: string;
@@ -141,7 +141,7 @@ export function fetchOrders() {
     try {
       dispatch(setStatus(Status.LOADING));
 
-      const response = await APIS.get("/order/all");
+      const response = await APIS.get("/orders/admin");
       
       if (response && (response.status === 200 || response.status === 201)) {
         dispatch(setStatus(Status.SUCCESS));
@@ -166,7 +166,7 @@ export function fetchOrders() {
 export function fetchAdminOrderDetails(id: string) {
   return async function fetchAdminOrderDetailsThunk(dispatch: AppDispatch) {
     try {
-      const response = await APIS.get("/order/" + id);
+      const response = await APIS.get("/orders/" + id);
       if (response.status === 200 || response.status === 201) {
         dispatch(setStatus(Status.SUCCESS));
         dispatch(setOrderDetails(response.data.data));
@@ -184,6 +184,16 @@ export function fetchAdminOrderDetails(id: string) {
 export function updateOrderStatus(orderId: string, status: string, userId: string) {
   return async function updateOrderStatusThunk(dispatch: AppDispatch) {
     console.log('🔄 Starting order status update:', { orderId, status, userId });
+    console.log('🔄 Function called from:', new Error().stack);
+    console.log('🔄 Thunk function started at:', new Date().toISOString());
+    console.log('🔄 Parameters validation:', {
+      orderIdType: typeof orderId,
+      statusType: typeof status,
+      userIdType: typeof userId,
+      orderIdValid: !!orderId,
+      statusValid: !!status,
+      userIdValid: !!userId
+    });
     
     // Try WebSocket first if available and enabled
     if (typeof window !== 'undefined' && (window as any).socket && (window as any).socket.connected) {
@@ -261,7 +271,8 @@ export function updateOrderStatus(orderId: string, status: string, userId: strin
     try {
       console.log('📤 Sending order status update:', { orderId, status });
       console.log('📤 Request payload:', { orderStatus: status });
-      console.log('📤 Request URL:', `/order/admin/change-status/${orderId}`);
+      console.log('📤 Request URL:', `/orders/admin/change-status/${orderId}`);
+      console.log('📤 Full API URL:', `${APIS.defaults.baseURL}/orders/admin/change-status/${orderId}`);
       
       // Check authentication token
       const token = localStorage.getItem("tokenauth");
@@ -269,7 +280,22 @@ export function updateOrderStatus(orderId: string, status: string, userId: strin
       console.log('🔐 Auth token length:', token?.length || 0);
       
       // Use the working endpoint only - backend expects 'orderStatus' field
-      const response = await APIS.patch(`/order/admin/change-status/${orderId}`, { orderStatus: status });
+      const apiUrl = `/orders/admin/change-status/${orderId}`;
+      const requestPayload = { orderStatus: status };
+      
+      console.log('🔗 Making API call to:', apiUrl);
+      console.log('📦 Request payload:', requestPayload);
+      console.log('🔑 Headers:', APIS.defaults.headers);
+      console.log('🌐 Full URL:', `${APIS.defaults.baseURL}${apiUrl}`);
+      
+      const response = await APIS.patch(apiUrl, requestPayload);
+      
+      console.log('📥 API Response received:', {
+        status: response.status,
+        statusText: response.statusText,
+        data: response.data,
+        headers: response.headers
+      });
       
       if (response && (response.status === 200 || response.status === 201)) {
         console.log('✅ Order status updated via API');
@@ -287,38 +313,47 @@ export function updateOrderStatus(orderId: string, status: string, userId: strin
       if (apiError.response) {
         console.error("❌ API Error Response:", {
           status: apiError.response.status,
+          statusText: apiError.response.statusText,
           data: apiError.response.data,
           message: apiError.response.data?.message || 'Unknown API error',
           config: {
             url: apiError.config?.url,
             method: apiError.config?.method,
-            data: apiError.config?.data
+            data: apiError.config?.data,
+            headers: apiError.config?.headers
           }
         });
-
-        // Handle specific business logic errors
-        if (apiError.response.status === 400) {
-          const errorData = apiError.response.data;
-          if (errorData?.message?.includes('Cannot deliver order without payment')) {
-            return { success: false, error: 'Cannot deliver order without payment. Payment must be completed first.' };
-          }
-          if (errorData?.message?.includes('Cannot prepare order without payment')) {
-            return { success: false, error: 'Cannot prepare order without payment. Payment must be completed first.' };
-          }
-          if (errorData?.message?.includes('Invalid status transition')) {
-            return { success: false, error: `Invalid status transition: ${errorData.message}` };
-          }
-          if (errorData?.message?.includes('Please provide orderId and orderStatus')) {
-            return { success: false, error: 'Missing required fields. Please try again.' };
-          }
+        
+        // Check if it's a 404 error (order not found)
+        if (apiError.response.status === 404) {
+          console.error("❌ Order not found in backend");
+          return { success: false, error: 'Order not found in backend' };
         }
+        
+        // Check if it's a 400 error (bad request)
+        if (apiError.response.status === 400) {
+          console.error("❌ Bad request - check order data");
+          return { success: false, error: apiError.response.data?.message || 'Bad request' };
+        }
+        
+        // Check if it's a 500 error (server error)
+        if (apiError.response.status === 500) {
+          console.error("❌ Server error - backend issue");
+          return { success: false, error: 'Server error - backend issue' };
+        }
+      } else if (apiError.request) {
+        console.error("❌ Network error - no response received:", apiError.request);
+        return { success: false, error: 'Network error - no response from server' };
+      } else {
+        console.error("❌ Request setup error:", apiError.message);
+        return { success: false, error: 'Request setup error' };
       }
       
       
       // Final fallback to local update
       try {
         console.log('🔄 API failed, trying local update');
-        const currentResponse = await APIS.get(`/order/${orderId}`);
+        const currentResponse = await APIS.get(`/orders/${orderId}`);
         if (currentResponse.status === 200 && currentResponse.data.data.length > 0) {
           const orderDetail = currentResponse.data.data[0];
           const updatedOrderDetail = {
@@ -422,7 +457,7 @@ export function updatePaymentStatus(orderId: string, paymentId: string, status: 
       console.log('🔐 Auth token length:', token?.length || 0);
       
       // Use the working endpoint only - backend expects both paymentId and status in body
-      const response = await APIS.patch(`/order/admin/change-payment-status/${paymentId}`, { 
+      const response = await APIS.patch(`/orders/admin/change-payment-status/${paymentId}`, { 
         paymentId: paymentId, 
         status: status 
       });
@@ -468,7 +503,7 @@ export function updatePaymentStatus(orderId: string, paymentId: string, status: 
       // Final fallback to local update
       try {
         console.log('🔄 API failed, trying local update');
-        const currentResponse = await APIS.get(`/order/${orderId}`);
+        const currentResponse = await APIS.get(`/orders/${orderId}`);
         if (currentResponse.status === 200 && currentResponse.data.data.length > 0) {
           const orderDetail = currentResponse.data.data[0];
           const updatedOrderDetail = {
@@ -490,6 +525,122 @@ export function updatePaymentStatus(orderId: string, paymentId: string, status: 
       }
       
       const errorMessage = apiError.response?.data?.message || apiError.message || "All update methods failed";
+      return { success: false, error: errorMessage };
+    }
+  };
+}
+
+export function deleteOrder(orderId: string) {
+  return async function deleteOrderThunk(dispatch: AppDispatch) {
+    try {
+      console.log('🗑️ Starting order deletion:', { orderId });
+      
+      const response = await APIS.delete(`/order/admin/delete-order/${orderId}`);
+      
+      if (response && (response.status === 200 || response.status === 201)) {
+        console.log('✅ Order deleted successfully');
+        
+        // Remove the order from the local state
+        // Note: The items will be refreshed by the parent component
+        
+        // Clear order details if this order was being viewed
+        dispatch(setOrderDetails([]));
+        
+        return { success: true, message: response.data.message || 'Order deleted successfully' };
+      } else {
+        console.error('❌ Order deletion failed:', response?.status);
+        return { success: false, error: 'Order deletion failed' };
+      }
+    } catch (error: any) {
+      console.error("❌ Order deletion error:", error);
+      
+      if (error.response) {
+        console.error("❌ API Error Response:", {
+          status: error.response.status,
+          data: error.response.data,
+          message: error.response.data?.message || 'Unknown API error'
+        });
+
+        // Handle specific business logic errors
+        if (error.response.status === 400) {
+          const errorData = error.response.data;
+          if (errorData?.message?.includes('Cannot delete delivered orders')) {
+            return { success: false, error: 'Cannot delete delivered orders' };
+          }
+          if (errorData?.message?.includes('Order not found')) {
+            return { success: false, error: 'Order not found' };
+          }
+        }
+        
+        if (error.response.status === 404) {
+          return { success: false, error: 'Order not found' };
+        }
+      }
+      
+      const errorMessage = error.response?.data?.message || error.message || "Failed to delete order";
+      return { success: false, error: errorMessage };
+    }
+  };
+}
+
+export function bulkDeleteOrders(orderIds: string[]) {
+  return async function bulkDeleteOrdersThunk(dispatch: AppDispatch) {
+    try {
+      console.log('🗑️ Starting bulk order deletion:', { orderIds, count: orderIds.length });
+      
+      const response = await APIS.delete('/order/admin/bulk-delete-orders', {
+        data: { orderIds }
+      });
+      
+      if (response && (response.status === 200 || response.status === 201)) {
+        console.log('✅ Orders deleted successfully');
+        
+        // Remove the orders from the local state
+        // Note: The items will be refreshed by the parent component
+        
+        // Clear order details if any of these orders were being viewed
+        dispatch(setOrderDetails([]));
+        
+        return { 
+          success: true, 
+          message: response.data.message || `${orderIds.length} orders deleted successfully`,
+          deletedCount: orderIds.length
+        };
+      } else {
+        console.error('❌ Bulk order deletion failed:', response?.status);
+        return { success: false, error: 'Bulk order deletion failed' };
+      }
+    } catch (error: any) {
+      console.error("❌ Bulk order deletion error:", error);
+      
+      if (error.response) {
+        console.error("❌ API Error Response:", {
+          status: error.response.status,
+          data: error.response.data,
+          message: error.response.data?.message || 'Unknown API error'
+        });
+
+        // Handle specific business logic errors
+        if (error.response.status === 400) {
+          const errorData = error.response.data;
+          if (errorData?.message?.includes('Cannot delete delivered orders')) {
+            return { 
+              success: false, 
+              error: 'Cannot delete delivered orders',
+              deliveredOrderIds: errorData.deliveredOrderIds || []
+            };
+          }
+          if (errorData?.message?.includes('Some orders not found')) {
+            return { 
+              success: false, 
+              error: 'Some orders not found',
+              notFoundIds: errorData.notFoundIds || []
+            };
+          }
+        }
+      }
+      
+      const errorMessage = error.response?.data?.message || error.message || "Failed to delete orders";
       return { success: false, error: errorMessage };
     }
   };
