@@ -19,6 +19,10 @@ const nextConfig: NextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
+  // Disable error pages for static export
+  generateBuildId: async () => {
+    return 'build-' + Date.now();
+  },
   experimental: {
     optimizePackageImports: ['@radix-ui/react-icons'],
   },
