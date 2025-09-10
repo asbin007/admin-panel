@@ -1,4 +1,4 @@
-import { createSlice, PayloadAction } from "@reduxjs/toolkit";
+ import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 import { Status } from "./authSlice";
 import { APIS } from "@/globals/http";
 import { AppDispatch } from "./store";
@@ -112,19 +112,43 @@ export function fetchAdminChats() {
     try {
       dispatch(setStatus(Status.LOADING));
       
-      const response = await APIS.get("/chats/all");
+      // Try to get admin chats using admin-specific endpoint
+      const response = await APIS.get("/chats/admin/all");
       
       if (response.status === 200) {
         dispatch(setChats(response.data.data || []));
         dispatch(setStatus(Status.SUCCESS));
-        console.log("✅ Admin chats loaded successfully");
+        console.log("✅ Admin chats loaded successfully with", response.data.data?.length || 0, "chats");
       } else {
-        console.log("⚠️ Chat endpoint returned error, using fallback");
+        console.log("⚠️ Chat stats endpoint returned error, using fallback");
         dispatch(setChats([]));
         dispatch(setStatus(Status.SUCCESS));
       }
     } catch (error) {
       console.error("Error fetching admin chats:", error);
+      
+      // Handle different types of errors
+      if (error && typeof error === 'object') {
+        const axiosError = error as any;
+        
+        // Check if it's a request aborted error
+        if (axiosError.code === 'ERR_CANCELED' || axiosError.message === 'Request aborted') {
+          console.warn("⚠️ Request was aborted - this is normal during component unmount");
+          return; // Don't dispatch empty chats if request was aborted
+        }
+        
+        // Check if it's a 403 error (role access issue)
+        if (axiosError.response?.status === 403) {
+          console.warn("⚠️ Admin chat access denied - chat functionality may not be available for admin role");
+          console.warn("ℹ️ This is expected if chat system is customer-only");
+        }
+        
+        // Check if it's a network error
+        if (axiosError.code === 'NETWORK_ERROR' || axiosError.message?.includes('Network Error')) {
+          console.warn("⚠️ Network error - check your internet connection");
+        }
+      }
+      
       dispatch(setChats([]));
       dispatch(setStatus(Status.SUCCESS));
     }

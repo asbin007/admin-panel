@@ -13,6 +13,7 @@ import {
   MessageCircle,
   Settings,
   LogOut,
+  BarChart3,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -250,6 +251,13 @@ export default function AdminLayout({
                 <Package className="h-4 w-4" />
                 Products
               </Link>
+              <Link
+                href="/profit-analysis"
+                className="flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary"
+              >
+                <BarChart3 className="h-4 w-4" />
+                Profit Analysis
+              </Link>
 
               <Link
                 href="/userTable"
@@ -339,6 +347,13 @@ export default function AdminLayout({
                 >
                   <Package className="h-5 w-5" />
                   Products
+                </Link>
+                <Link
+                  href="/profit-analysis"
+                  className="mx-[-0.65rem] flex items-center gap-4 rounded-xl px-3 py-2 text-muted-foreground hover:text-foreground"
+                >
+                  <BarChart3 className="h-5 w-5" />
+                  Profit Analysis
                 </Link>
                 <Link
                   href="/userTable"

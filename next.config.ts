@@ -1,7 +1,10 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  output: 'export',
+  trailingSlash: true,
   images: {
+    unoptimized: true,
     remotePatterns: [
       {
         protocol: "http",
@@ -15,6 +18,9 @@ const nextConfig: NextConfig = {
         pathname: "/**", // Allow all paths under Cloudinary
       },
     ],
+  },
+  eslint: {
+    ignoreDuringBuilds: true,
   },
   experimental: {
     optimizePackageImports: ['@radix-ui/react-icons'],

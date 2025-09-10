@@ -142,19 +142,46 @@ export default function ChatPage() {
     try {
       const { APIS } = await import("@/globals/http");
       
-      const response = await APIS.get("/chats/all");
+      // Try to get admin chats using admin-specific endpoint
+      const response = await APIS.get("/chats/admin/all");
       
       if (response.status === 200) {
-        console.log("✅ Chats fetched successfully:", response.data);
+        console.log("✅ Admin chats fetched successfully:", response.data);
         setChats(response.data.data || []);
+        console.log("ℹ️ Admin chat list loaded with", response.data.data?.length || 0, "chats");
       } else {
-        console.error("Error fetching admin chats:", response.status);
-        // Set empty array if API fails instead of mock data
+        console.error("Error fetching admin chat stats:", response.status);
         setChats([]);
       }
     } catch (error) {
-      console.error("Error fetching chats:", error);
-      // Set empty array if network error instead of mock data
+      console.error("Error fetching chat stats:", error);
+      
+      // Handle different types of errors
+      if (error && typeof error === 'object') {
+        const axiosError = error as { 
+          code?: string; 
+          message?: string; 
+          response?: { status?: number }; 
+        };
+        
+        // Check if it's a request aborted error
+        if (axiosError.code === 'ERR_CANCELED' || axiosError.message === 'Request aborted') {
+          console.warn("⚠️ Request was aborted - this is normal during component unmount");
+          return; // Don't set empty chats if request was aborted
+        }
+        
+        // Check if it's a 403 error (role access issue)
+        if (axiosError.response?.status === 403) {
+          console.warn("⚠️ Admin chat access denied - chat functionality may not be available for admin role");
+          console.warn("ℹ️ This is expected if chat system is customer-only");
+        }
+        
+        // Check if it's a network error
+        if (axiosError.code === 'NETWORK_ERROR' || axiosError.message?.includes('Network Error')) {
+          console.warn("⚠️ Network error - check your internet connection");
+        }
+      }
+      
       setChats([]);
     }
   };
@@ -233,7 +260,7 @@ export default function ChatPage() {
     try {
       const { APIS } = await import("@/globals/http");
       
-      const response = await APIS.get(`/chats/${chat.id}/messages`);
+      const response = await APIS.get(`/chats/admin/${chat.id}/messages`);
       
       if (response.status === 200) {
         const chatMessages = response.data.data || [];
@@ -300,7 +327,7 @@ export default function ChatPage() {
 
       const { APIS } = await import("@/globals/http");
       
-      const response = await APIS.post("/chats/send-message", messageData);
+      const response = await APIS.post("/chats/admin/send-message", messageData);
 
       if (response.status === 200 || response.status === 201) {
         const newMsg = response.data.data;
@@ -390,7 +417,7 @@ export default function ChatPage() {
     try {
       const { APIS } = await import("@/globals/http");
 
-      const response = await APIS.post("/chats/send-message", {
+      const response = await APIS.post("/chats/admin/send-message", {
         chatId: selectedChat.id,
         content: `📍 Location shared`,
         type: 'location',
@@ -435,7 +462,7 @@ export default function ChatPage() {
         console.log(key, value);
       }
 
-      const response = await APIS.post("/chats/send-message", formData, {
+      const response = await APIS.post("/chats/admin/send-message", formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
@@ -613,9 +640,12 @@ export default function ChatPage() {
                   <div className="p-4 bg-slate-100/50 dark:bg-slate-700/50 rounded-2xl inline-block mb-4">
                     <MessageCircle className="h-8 w-8 text-slate-400" />
                   </div>
-                  <h3 className="text-slate-600 dark:text-slate-300 font-medium mb-2">No chats found</h3>
+                  <h3 className="text-slate-600 dark:text-slate-300 font-medium mb-2">No chats available</h3>
                   <p className="text-sm text-slate-500 dark:text-slate-400">
-                    Start a conversation with your customers
+                    Chat functionality may not be available for admin role
+                  </p>
+                  <p className="text-xs text-slate-400 dark:text-slate-500 mt-2">
+                    The chat system is currently designed for customer support
                   </p>
                 </div>
               ) : (
@@ -755,7 +785,7 @@ export default function ChatPage() {
                             <div className="space-y-3">
                               <NextImage 
                                 src={getImageUrl(message.imageUrl || extractImageFilename(message.content) || '')} 
-                                alt="Shared image" 
+                                alt="Shared image by customer" 
                                 width={400}
                                 height={300}
                                 className="rounded-xl max-w-full h-auto cursor-pointer hover:opacity-90 transition-all duration-200 shadow-md"
@@ -963,7 +993,7 @@ export default function ChatPage() {
               <div className="relative">
                 <NextImage 
                   src={imagePreview} 
-                  alt="Preview" 
+                  alt="Image preview for sending" 
                   width={400}
                   height={256}
                   className="w-full h-64 object-cover rounded-lg"

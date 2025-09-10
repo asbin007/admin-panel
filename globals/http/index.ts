@@ -16,7 +16,7 @@ const APIS = axios.create({
   },
 });
 
-// ✅ Interceptor with raw token (no Bearer prefix)
+// ✅ Interceptor with raw token (no Bearer prefix) - backend expects raw token
 APIS.interceptors.request.use((config) => {
   const token = localStorage.getItem("tokenauth");
   if (token) {

@@ -437,12 +437,12 @@ export default function Orders() {
             <AlertDialogTitle>Delete Order</AlertDialogTitle>
             <AlertDialogDescription>
               Are you sure you want to delete this order? This action cannot be undone.
-              {orderToDelete && (
-                <div className="mt-2 p-2 bg-muted rounded text-sm">
-                  Order ID: {orderToDelete}
-                </div>
-              )}
             </AlertDialogDescription>
+            {orderToDelete && (
+              <div className="mt-2 p-2 bg-muted rounded text-sm">
+                Order ID: {orderToDelete}
+              </div>
+            )}
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>

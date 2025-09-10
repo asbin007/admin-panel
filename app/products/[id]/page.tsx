@@ -388,12 +388,16 @@ export default function ProductDetailsPage() {
                 <span className="text-sm">{product.brand}</span>
               </div>
               <div className="flex justify-between">
+                <span className="text-sm font-medium">Cost Price:</span>
+                <span className="text-sm font-semibold text-green-600">Rs {product.costPrice?.toFixed(2) || 'N/A'}</span>
+              </div>
+              <div className="flex justify-between">
                 <span className="text-sm font-medium">Category:</span>
-                <Badge variant="secondary">{product.Category.categoryName}</Badge>
+                <Badge variant="secondary">{product?.Category?.categoryName || 'N/A'}</Badge>
               </div>
           <div className="flex justify-between">
             <span className="text-sm font-medium">Collection:</span>
-            <Badge variant="outline">{product.Collection.collectionName}</Badge>
+            <Badge variant="outline">{product?.Collection?.collectionName || 'N/A'}</Badge>
           </div>
               <Separator />
               <div className="space-y-2">

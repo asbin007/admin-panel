@@ -51,6 +51,7 @@ interface FormData {
   discount: number
   originalPrice: number
   price: number
+  costPrice: number // Cost price for profit calculation (admin only)
   inStock: boolean
   isNew: boolean
   isActive: boolean
@@ -98,6 +99,7 @@ const AddProductForm: React.FC<AddProductFormProps> = ({ closeModal, editProduct
     discount: 0,
     originalPrice: 0,
     price: 0,
+    costPrice: 0,
     inStock: true,
     isNew: false,
     isActive: true,
@@ -123,6 +125,7 @@ const AddProductForm: React.FC<AddProductFormProps> = ({ closeModal, editProduct
         discount: editProduct.discount || 0,
         originalPrice: editProduct.originalPrice || 0,
         price: editProduct.price || 0,
+        costPrice: editProduct.costPrice || 0,
         inStock: editProduct.inStock !== undefined ? editProduct.inStock : true,
         isNew: editProduct.isNew !== undefined ? editProduct.isNew : false,
         totalStock: editProduct.totalStock || 0,
@@ -161,9 +164,11 @@ const AddProductForm: React.FC<AddProductFormProps> = ({ closeModal, editProduct
     if (!formData.name.trim()) newErrors.name = "Product name is required"
     if (!formData.brand.trim()) newErrors.brand = "Brand is required"
     if (!formData.description.trim()) newErrors.description = "Description is required"
+    if (formData.costPrice <= 0) newErrors.costPrice = "Cost price must be greater than 0"
     if (formData.originalPrice <= 0) newErrors.originalPrice = "Original price must be greater than 0"
     if (formData.price <= 0) newErrors.price = "Price must be greater than 0"
     if (formData.price > formData.originalPrice) newErrors.price = "Price cannot exceed original price"
+    if (formData.costPrice > formData.originalPrice) newErrors.costPrice = "Cost price cannot exceed original price"
     if (formData.totalStock < 0) newErrors.totalStock = "Stock cannot be negative"
     if (!formData.Category.id) newErrors.category = "Please select a category"
     if (!formData.Collection.id) newErrors.collection = "Please select a collection"
@@ -660,7 +665,32 @@ const AddProductForm: React.FC<AddProductFormProps> = ({ closeModal, editProduct
                           Pricing Information
                         </h3>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="costPrice" className="font-semibold">
+                              Cost Price *
+                            </Label>
+                            <div className="relative">
+                              <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-sm font-medium text-muted-foreground">Rs</span>
+              <Input
+                                id="costPrice"
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                value={formData.costPrice}
+                                onChange={(e) =>
+                                  setFormData((prev) => ({
+                                    ...prev,
+                                    costPrice: Number.parseFloat(e.target.value) || 0,
+                                  }))
+                                }
+                                className={`pl-12 h-10 sm:h-12 text-base sm:text-lg ${errors.costPrice ? "border-destructive" : ""}`}
+                                placeholder="0.00"
+              />
+                            </div>
+                            {errors.costPrice && <p className="text-destructive text-sm">{errors.costPrice}</p>}
+            </div>
+
                           <div className="space-y-2">
                             <Label htmlFor="originalPrice" className="font-semibold">
                               Original Price *
@@ -757,6 +787,11 @@ const AddProductForm: React.FC<AddProductFormProps> = ({ closeModal, editProduct
                         </CardHeader>
                         <CardContent className="space-y-4">
                           <div className="flex justify-between items-center">
+                            <span className="text-muted-foreground">Cost Price:</span>
+                            <span className="font-semibold text-lg">Rs {formData.costPrice.toFixed(2)}</span>
+                          </div>
+
+                          <div className="flex justify-between items-center">
                             <span className="text-muted-foreground">Original Price:</span>
                             <span className="font-semibold text-lg">Rs {formData.originalPrice.toFixed(2)}</span>
                           </div>
@@ -772,6 +807,21 @@ const AddProductForm: React.FC<AddProductFormProps> = ({ closeModal, editProduct
                             <span>Sale Price:</span>
                             <span className="text-primary">Rs {formData.price.toFixed(2)}</span>
                           </div>
+
+                          {formData.costPrice > 0 && formData.price > 0 && (
+                            <div className="space-y-2 border-t pt-4">
+                              <div className="flex justify-between items-center">
+                                <span className="text-muted-foreground">Profit per unit:</span>
+                                <span className="font-semibold text-green-600">Rs {(formData.price - formData.costPrice).toFixed(2)}</span>
+                              </div>
+                              <div className="flex justify-between items-center">
+                                <span className="text-muted-foreground">Profit %:</span>
+                                <span className="font-semibold text-green-600">
+                                  {formData.costPrice > 0 ? (((formData.price - formData.costPrice) / formData.costPrice) * 100).toFixed(1) : 0}%
+                                </span>
+                              </div>
+                            </div>
+                          )}
 
                           {formData.originalPrice > 0 &&
                             formData.price > 0 &&

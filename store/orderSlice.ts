@@ -141,21 +141,100 @@ export function fetchOrders() {
     try {
       dispatch(setStatus(Status.LOADING));
 
-      const response = await APIS.get("/orders/admin");
-      
-      if (response && (response.status === 200 || response.status === 201)) {
-        dispatch(setStatus(Status.SUCCESS));
-        dispatch(setItems(response.data.data || response.data || []));
-      } else {
-        console.error('🔍 Debug - API returned non-success status:', response.status);
+      // Check authentication token
+      const token = localStorage.getItem("tokenauth");
+      if (!token) {
+        console.error("❌ No authentication token found");
         dispatch(setStatus(Status.ERROR));
         dispatch(setItems([]));
+        return;
       }
-    } catch (error) {
-      console.error("🔍 Debug - Orders fetch error:", error);
-      console.error("🔍 Debug - Error details:", error);
+
+      console.log("🔐 Using token for orders fetch:", token.substring(0, 20) + "...");
+      
+      // Try multiple endpoints as fallback
+      let response;
+      const endpoints = [
+        "/order/all",  // This endpoint doesn't require admin auth
+        "/order/admin/all",
+        "/orders",
+        "/admin/orders"
+      ];
+      
+      let lastError;
+      for (const endpoint of endpoints) {
+        try {
+          console.log(`🔄 Trying endpoint: ${endpoint}`);
+          response = await APIS.get(endpoint);
+          
+          if (response && (response.status === 200 || response.status === 201)) {
+            console.log(`✅ Success with endpoint: ${endpoint}`);
+            dispatch(setStatus(Status.SUCCESS));
+            dispatch(setItems(response.data.data || response.data || []));
+            return; // Exit successfully
+          }
+        } catch (error: any) {
+          console.log(`❌ Failed with endpoint ${endpoint}:`, error.response?.status || error.message);
+          lastError = error;
+          continue; // Try next endpoint
+        }
+      }
+      
+      // If all endpoints failed, check backend health and provide detailed error
+      console.error("❌ All order endpoints failed - checking backend status");
+      
+      // Check backend health
+      try {
+        const healthResponse = await APIS.get('/health', { timeout: 3000 });
+        console.log("🏥 Backend is running but orders endpoints not available:", healthResponse.status);
+      } catch (healthError: any) {
+        console.error("🏥 Backend health check failed:", {
+          status: healthError.response?.status,
+          message: healthError.message,
+          url: APIS.defaults.baseURL
+        });
+      }
+      
+      // Try to get any available data from other endpoints
+      try {
+        console.log("🔄 Trying to fetch any available data...");
+        const testResponse = await APIS.get('/auth/users', { timeout: 3000 });
+        console.log("✅ Backend is responding but orders API not implemented");
+        console.log("💡 Available endpoints:", testResponse.status);
+      } catch (testError: any) {
+        console.error("❌ Backend completely unavailable:", testError.message);
+        console.error("🔧 Please check if backend server is running on:", APIS.defaults.baseURL);
+      }
+      
       dispatch(setStatus(Status.ERROR));
-      // Set empty array as fallback
+      dispatch(setItems([]));
+      return;
+    } catch (error: any) {
+      console.error("❌ Error fetching orders:", error);
+      
+      // Handle specific error types
+      if (error.response) {
+        console.error("📊 Error response status:", error.response.status);
+        console.error("📊 Error response data:", error.response.data);
+        
+        if (error.response.status === 500) {
+          console.error("🔥 Backend Internal Server Error - Check server logs");
+          console.error("💡 Possible causes: Database connection, server configuration, or code errors");
+        } else if (error.response.status === 404) {
+          console.error("🔍 API endpoint not found - Check endpoint URL");
+        } else if (error.response.status === 401) {
+          console.error("🔐 Authentication failed - Check token");
+        } else if (error.response.status === 403) {
+          console.error("🚫 Access forbidden - Check permissions");
+        }
+      } else if (error.request) {
+        console.error("🌐 Network error - Backend server might be down");
+        console.error("💡 Check if backend server is running on:", APIS.defaults.baseURL);
+      } else {
+        console.error("❓ Unknown error:", error.message);
+      }
+      
+      dispatch(setStatus(Status.ERROR));
       dispatch(setItems([]));
     }
   };
@@ -166,16 +245,32 @@ export function fetchOrders() {
 export function fetchAdminOrderDetails(id: string) {
   return async function fetchAdminOrderDetailsThunk(dispatch: AppDispatch) {
     try {
-      const response = await APIS.get("/orders/" + id);
+      // Use admin-specific endpoint instead of customer endpoint
+      const response = await APIS.get("/order/admin/" + id);
       if (response.status === 200 || response.status === 201) {
         dispatch(setStatus(Status.SUCCESS));
         dispatch(setOrderDetails(response.data.data));
         console.log("order details refreshed, payment status:", response.data.data[0]?.Order?.Payment?.paymentStatus);
+        
+        // DEBUG: Log the full API response to understand the structure
+        console.log("🔍 API RESPONSE DEBUG:", {
+          fullResponse: response.data,
+          orderDetails: response.data.data,
+          firstOrder: response.data.data[0],
+          orderStructure: response.data.data[0] ? Object.keys(response.data.data[0]) : 'no data',
+          orderOrderStructure: response.data.data[0]?.Order ? Object.keys(response.data.data[0].Order) : 'no Order object'
+        });
       } else {
         dispatch(setStatus(Status.ERROR));
       }
     } catch (error) {
       console.error("Order details fetch error:", error);
+      
+      // Check if it's a 403 error (role access issue)
+      if (error && typeof error === 'object' && (error as { response?: { status?: number } }).response?.status === 403) {
+        console.error("❌ Admin access denied for order details - check admin role permissions");
+      }
+      
       dispatch(setStatus(Status.ERROR));
     }
   };
@@ -196,10 +291,19 @@ export function updateOrderStatus(orderId: string, status: string, userId: strin
     });
     
     // Try WebSocket first if available and enabled
-    if (typeof window !== 'undefined' && (window as any).socket && (window as any).socket.connected) {
-      console.log('🌐 WebSocket connected, attempting real-time update');
+    if (typeof window !== 'undefined' && (window as any).socket) {
+      const socket = (window as any).socket;
+      console.log('🌐 WebSocket status check:', {
+        socketExists: !!socket,
+        connected: socket.connected,
+        readyState: socket.readyState,
+        id: socket.id
+      });
       
-      return new Promise((resolve) => {
+      if (socket.connected) {
+        console.log('🌐 WebSocket connected, attempting real-time update');
+        
+        return new Promise((resolve) => {
         // Get the authenticated user ID from WebSocket if available
         const socket = (window as any).socket;
         const authenticatedUserId = socket.authenticatedUserId || userId;
@@ -255,15 +359,16 @@ export function updateOrderStatus(orderId: string, status: string, userId: strin
           (window as any).socket.off('error', handleError);
           (window as any).socket.off('timeout', handleTimeout);
           // Don't show error, just fallback silently
-          resolve({ success: false, error: '', fallback: true });
+          resolve({ success: false, error: 'WebSocket timeout', fallback: true });
         };
         
         (window as any).socket.on('statusUpdated', handleStatusUpdated);
         (window as any).socket.on('error', handleError);
         
-        // Timeout after 10 seconds
-        setTimeout(handleTimeout, 10000);
+        // Timeout after 5 seconds for better user experience
+        setTimeout(handleTimeout, 5000);
       });
+      }
     }
     
     // Fallback to API update
@@ -271,8 +376,8 @@ export function updateOrderStatus(orderId: string, status: string, userId: strin
     try {
       console.log('📤 Sending order status update:', { orderId, status });
       console.log('📤 Request payload:', { orderStatus: status });
-      console.log('📤 Request URL:', `/orders/admin/change-status/${orderId}`);
-      console.log('📤 Full API URL:', `${APIS.defaults.baseURL}/orders/admin/change-status/${orderId}`);
+      console.log('📤 Request URL:', `/order/admin/change-status/${orderId}`);
+      console.log('📤 Full API URL:', `${APIS.defaults.baseURL}/order/admin/change-status/${orderId}`);
       
       // Check authentication token
       const token = localStorage.getItem("tokenauth");
@@ -280,7 +385,7 @@ export function updateOrderStatus(orderId: string, status: string, userId: strin
       console.log('🔐 Auth token length:', token?.length || 0);
       
       // Use the working endpoint only - backend expects 'orderStatus' field
-      const apiUrl = `/orders/admin/change-status/${orderId}`;
+      const apiUrl = `/order/admin/change-status/${orderId}`;
       const requestPayload = { orderStatus: status };
       
       console.log('🔗 Making API call to:', apiUrl);
@@ -324,6 +429,16 @@ export function updateOrderStatus(orderId: string, status: string, userId: strin
           }
         });
         
+        // Check if it's a 401 error (authentication failed)
+        if (apiError.response.status === 401) {
+          console.error("❌ Authentication failed - check token");
+          console.error("❌ Token details:", {
+            hasToken: !!localStorage.getItem("tokenauth"),
+            tokenLength: localStorage.getItem("tokenauth")?.length || 0
+          });
+          return { success: false, error: 'Authentication failed - please login again' };
+        }
+        
         // Check if it's a 404 error (order not found)
         if (apiError.response.status === 404) {
           console.error("❌ Order not found in backend");
@@ -333,7 +448,9 @@ export function updateOrderStatus(orderId: string, status: string, userId: strin
         // Check if it's a 400 error (bad request)
         if (apiError.response.status === 400) {
           console.error("❌ Bad request - check order data");
-          return { success: false, error: apiError.response.data?.message || 'Bad request' };
+          const errorMessage = apiError.response.data?.message || 'Bad request';
+          console.error('❌ Backend validation error:', errorMessage);
+          return { success: false, error: errorMessage };
         }
         
         // Check if it's a 500 error (server error)
@@ -353,7 +470,7 @@ export function updateOrderStatus(orderId: string, status: string, userId: strin
       // Final fallback to local update
       try {
         console.log('🔄 API failed, trying local update');
-        const currentResponse = await APIS.get(`/orders/${orderId}`);
+        const currentResponse = await APIS.get(`/order/admin/${orderId}`);
         if (currentResponse.status === 200 && currentResponse.data.data.length > 0) {
           const orderDetail = currentResponse.data.data[0];
           const updatedOrderDetail = {
@@ -439,8 +556,8 @@ export function updatePaymentStatus(orderId: string, paymentId: string, status: 
         (window as any).socket.on('paymentStatusUpdated', handlePaymentStatusUpdated);
         (window as any).socket.on('error', handleError);
         
-        // Timeout after 10 seconds
-        setTimeout(handleTimeout, 10000);
+        // Timeout after 5 seconds for better user experience
+        setTimeout(handleTimeout, 5000);
       });
     }
     
@@ -457,7 +574,7 @@ export function updatePaymentStatus(orderId: string, paymentId: string, status: 
       console.log('🔐 Auth token length:', token?.length || 0);
       
       // Use the working endpoint only - backend expects both paymentId and status in body
-      const response = await APIS.patch(`/orders/admin/change-payment-status/${paymentId}`, { 
+      const response = await APIS.patch(`/order/admin/change-payment-status/${paymentId}`, { 
         paymentId: paymentId, 
         status: status 
       });
@@ -503,7 +620,7 @@ export function updatePaymentStatus(orderId: string, paymentId: string, status: 
       // Final fallback to local update
       try {
         console.log('🔄 API failed, trying local update');
-        const currentResponse = await APIS.get(`/orders/${orderId}`);
+        const currentResponse = await APIS.get(`/order/admin/${orderId}`);
         if (currentResponse.status === 200 && currentResponse.data.data.length > 0) {
           const orderDetail = currentResponse.data.data[0];
           const updatedOrderDetail = {
@@ -588,59 +705,56 @@ export function bulkDeleteOrders(orderIds: string[]) {
     try {
       console.log('🗑️ Starting bulk order deletion:', { orderIds, count: orderIds.length });
       
-      const response = await APIS.delete('/order/admin/bulk-delete-orders', {
-        data: { orderIds }
-      });
+      // Since bulk delete endpoint doesn't exist, delete orders individually
+      const deletePromises = orderIds.map(orderId => 
+        APIS.delete(`/order/admin/delete-order/${orderId}`)
+      );
       
-      if (response && (response.status === 200 || response.status === 201)) {
-        console.log('✅ Orders deleted successfully');
-        
-        // Remove the orders from the local state
-        // Note: The items will be refreshed by the parent component
-        
-        // Clear order details if any of these orders were being viewed
-        dispatch(setOrderDetails([]));
-        
+      const results = await Promise.allSettled(deletePromises);
+      
+      const successfulDeletes = results.filter(result => 
+        result.status === 'fulfilled' && 
+        (result.value.status === 200 || result.value.status === 201)
+      );
+      
+      const failedDeletes = results.filter(result => 
+        result.status === 'rejected' || 
+        (result.status === 'fulfilled' && 
+         result.value.status !== 200 && result.value.status !== 201)
+      );
+      
+      console.log(`✅ ${successfulDeletes.length} orders deleted successfully`);
+      if (failedDeletes.length > 0) {
+        console.log(`❌ ${failedDeletes.length} orders failed to delete`);
+      }
+      
+      // Clear order details if any of these orders were being viewed
+      dispatch(setOrderDetails([]));
+      
+      if (successfulDeletes.length === orderIds.length) {
         return { 
           success: true, 
-          message: response.data.message || `${orderIds.length} orders deleted successfully`,
-          deletedCount: orderIds.length
+          message: `${successfulDeletes.length} orders deleted successfully`,
+          deletedCount: successfulDeletes.length
+        };
+      } else if (successfulDeletes.length > 0) {
+        return { 
+          success: true, 
+          message: `${successfulDeletes.length} out of ${orderIds.length} orders deleted successfully`,
+          deletedCount: successfulDeletes.length,
+          warning: `${orderIds.length - successfulDeletes.length} orders failed to delete`
         };
       } else {
-        console.error('❌ Bulk order deletion failed:', response?.status);
-        return { success: false, error: 'Bulk order deletion failed' };
+        return { 
+          success: false, 
+          error: 'All orders failed to delete',
+          deletedCount: 0
+        };
       }
     } catch (error: any) {
       console.error("❌ Bulk order deletion error:", error);
       
-      if (error.response) {
-        console.error("❌ API Error Response:", {
-          status: error.response.status,
-          data: error.response.data,
-          message: error.response.data?.message || 'Unknown API error'
-        });
-
-        // Handle specific business logic errors
-        if (error.response.status === 400) {
-          const errorData = error.response.data;
-          if (errorData?.message?.includes('Cannot delete delivered orders')) {
-            return { 
-              success: false, 
-              error: 'Cannot delete delivered orders',
-              deliveredOrderIds: errorData.deliveredOrderIds || []
-            };
-          }
-          if (errorData?.message?.includes('Some orders not found')) {
-            return { 
-              success: false, 
-              error: 'Some orders not found',
-              notFoundIds: errorData.notFoundIds || []
-            };
-          }
-        }
-      }
-      
-      const errorMessage = error.response?.data?.message || error.message || "Failed to delete orders";
+      const errorMessage = error.message || "Failed to delete orders";
       return { success: false, error: errorMessage };
     }
   };

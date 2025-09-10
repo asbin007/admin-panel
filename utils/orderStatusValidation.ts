@@ -34,8 +34,8 @@ export const STATUS_TRANSITION_RULES: StatusTransitionRule[] = [
   },
   {
     from: 'delivered',
-    to: [],
-    description: 'Delivered orders cannot be changed to any other status'
+    to: ['preparation', 'ontheway', 'cancelled'],
+    description: 'Delivered orders can be changed to preparation, on the way, or cancelled'
   },
   {
     from: 'cancelled',

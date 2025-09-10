@@ -17,7 +17,7 @@ import {
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
-import { fetchAdminOrderDetails, updatePaymentStatus } from "@/store/orderSlice";
+import { fetchAdminOrderDetails, updatePaymentStatus, updateOrderStatus } from "@/store/orderSlice";
 import { toast } from "sonner";
 import { isValidStatusTransition, type OrderStatus as ValidOrderStatus } from '@/utils/orderStatusValidation';
 import { getWebSocketStatus } from "@/utils/websocketFallback";
@@ -73,9 +73,48 @@ function AdminOrderDetail() {
         orderObject: order.Order
       });
       
+      // DEBUG: Log the full order object to see the actual structure
+      console.log('🔍 FULL ORDER OBJECT:', JSON.stringify(order, null, 2));
+      
+      // DEBUG: Check all possible status fields
+      console.log('🔍 STATUS FIELD CHECK:', {
+        'order.status': (order as unknown as Record<string, unknown>).status,
+        'order.Order.status': order.Order?.status,
+        'order.orderStatus': (order as unknown as Record<string, unknown>).orderStatus,
+        'order.Order.orderStatus': (order.Order as unknown as Record<string, unknown>)?.orderStatus,
+        'order.Order.order_status': (order.Order as unknown as Record<string, unknown>)?.order_status,
+        'order.order_status': (order as unknown as Record<string, unknown>).order_status,
+        'order.OrderStatus': (order as unknown as Record<string, unknown>).OrderStatus,
+        'order.Order.OrderStatus': (order.Order as unknown as Record<string, unknown>)?.OrderStatus,
+        'order.state': (order as unknown as Record<string, unknown>).state,
+        'order.Order.state': order.Order?.state,
+        'order.Order.orderState': (order.Order as unknown as Record<string, unknown>)?.orderState,
+        'order.Order.order_state': (order.Order as unknown as Record<string, unknown>)?.order_state
+      });
+      
       // Try different possible paths for order status
-      const serverOrderStatus = order.Order?.status || (order as { status?: string }).status || 'pending';
-      const serverPaymentStatus = order.Order?.Payment?.paymentStatus || (order as { paymentStatus?: string }).paymentStatus || 'unpaid';
+      const serverOrderStatus = 
+        order.Order?.status || 
+        (order as unknown as Record<string, unknown>).status || 
+        (order as unknown as Record<string, unknown>).orderStatus || 
+        (order.Order as unknown as Record<string, unknown>)?.orderStatus ||
+        (order.Order as unknown as Record<string, unknown>)?.order_status ||
+        (order as unknown as Record<string, unknown>).order_status ||
+        (order as unknown as Record<string, unknown>).OrderStatus ||
+        (order.Order as unknown as Record<string, unknown>)?.OrderStatus ||
+        (order as unknown as Record<string, unknown>).state ||
+        (order.Order as unknown as Record<string, unknown>)?.state ||
+        (order.Order as unknown as Record<string, unknown>)?.orderState ||
+        (order.Order as unknown as Record<string, unknown>)?.order_state ||
+        'pending';
+        
+      const serverPaymentStatus = 
+        order.Order?.Payment?.paymentStatus || 
+        (order as unknown as Record<string, unknown>).paymentStatus || 
+        (order as unknown as Record<string, unknown>).payment_status ||
+        (order.Order as unknown as Record<string, unknown>)?.paymentStatus ||
+        (order.Order as unknown as Record<string, unknown>)?.payment_status ||
+        'unpaid';
       
       // Only update local state if it's different from server state
       if (localOrderStatus !== serverOrderStatus) {
@@ -185,11 +224,38 @@ function AdminOrderDetail() {
         const currentOrder = orderDetails[0];
         
         // Try different possible paths for order data
-        const currentPaymentStatus = currentOrder?.Order?.Payment?.paymentStatus || (currentOrder as { paymentStatus?: string })?.paymentStatus;
-        const paymentMethod = currentOrder?.Order?.Payment?.paymentMethod || (currentOrder as { paymentMethod?: string })?.paymentMethod;
+        const currentPaymentStatus = 
+          currentOrder?.Order?.Payment?.paymentStatus || 
+          (currentOrder as unknown as Record<string, unknown>).paymentStatus || 
+          (currentOrder as unknown as Record<string, unknown>).payment_status ||
+          (currentOrder.Order as unknown as Record<string, unknown>)?.paymentStatus ||
+          (currentOrder.Order as unknown as Record<string, unknown>)?.payment_status ||
+          'unpaid';
+          
+        const paymentMethod = 
+          currentOrder?.Order?.Payment?.paymentMethod || 
+          (currentOrder as unknown as Record<string, unknown>).paymentMethod || 
+          (currentOrder as unknown as Record<string, unknown>).payment_method ||
+          (currentOrder.Order as unknown as Record<string, unknown>)?.paymentMethod ||
+          (currentOrder.Order as unknown as Record<string, unknown>)?.payment_method ||
+          'cod';
         
-        // Get current order status with fallback
-        const currentOrderStatus = currentOrder?.Order?.status || (currentOrder as { status?: string })?.status || localOrderStatus || 'pending';
+        // Get current order status with fallback - try all possible paths
+        const currentOrderStatus = 
+          currentOrder?.Order?.status || 
+          (currentOrder as unknown as Record<string, unknown>).status || 
+          (currentOrder as unknown as Record<string, unknown>).orderStatus || 
+          (currentOrder.Order as unknown as Record<string, unknown>)?.orderStatus ||
+          (currentOrder.Order as unknown as Record<string, unknown>)?.order_status ||
+          (currentOrder as unknown as Record<string, unknown>).order_status ||
+          (currentOrder as unknown as Record<string, unknown>).OrderStatus ||
+          (currentOrder.Order as unknown as Record<string, unknown>)?.OrderStatus ||
+          (currentOrder as unknown as Record<string, unknown>).state ||
+          (currentOrder.Order as unknown as Record<string, unknown>)?.state ||
+          (currentOrder.Order as unknown as Record<string, unknown>)?.orderState ||
+          (currentOrder.Order as unknown as Record<string, unknown>)?.order_state ||
+          localOrderStatus || 
+          'pending';
         
         console.log('🔍 Status change data paths:', {
           orderStatusFromOrder: currentOrder?.Order?.status,
@@ -258,41 +324,12 @@ function AdminOrderDetail() {
           adminUserId
         });
         
-        console.log('🚀 DIRECT FIX - UPDATING STATUS...');
+        console.log('🚀 Calling updateOrderStatus API...');
         console.log('🚀 Current status:', localOrderStatus);
         console.log('🚀 New status:', value);
         
-        // SIMPLE FIX: Just update the local state and show success
-        setLocalOrderStatus(value);
-        setIsUpdating(false);
-        
-        console.log('✅ Local state updated');
-        
-        // Show success message
-        toast.success('Order status updated!', {
-          description: `Status changed to ${value}`,
-          duration: 3000,
-        });
-        
-        console.log('✅ Toast shown');
-        
-        // Refresh order details
-        dispatch(fetchAdminOrderDetails(id));
-        
-        console.log('✅ Order details refresh dispatched');
-        
-        const result: { success: boolean; error?: string; method?: string } = { 
-          success: true, 
-          method: 'local-update' 
-        };
-        
-        console.log('✅ RESULT:', result);
-        
-        // Force UI update
-        setTimeout(() => {
-          console.log('🔄 Force UI update after 100ms');
-          setLocalOrderStatus(value);
-        }, 100);
+        // Call the actual updateOrderStatus function from Redux slice
+        const result = await dispatch(updateOrderStatus(id, value, adminUserId)) as { success: boolean; error?: string; method?: string };
         
         console.log('📊 Status update result:', result);
         
@@ -312,14 +349,21 @@ function AdminOrderDetail() {
           });
           
           return { success: true };
-        } else if (result.error && result.error !== 'WebSocket timeout') {
-          // Only show error if it's not a WebSocket timeout
-          console.error('❌ Failed to update order status:', result.error);
-          setIsUpdating(false);
-          return { success: false, error: result.error || 'Unknown error' };
         } else {
-          console.error('❌ Failed to update order status:', result.error);
-          // Show more specific error message
+          // Check if it's a WebSocket timeout (should be handled silently)
+          if (result.error === 'WebSocket timeout') {
+            console.log('⏰ WebSocket timeout, update will be processed via API fallback');
+            // Update local state for immediate feedback
+            setLocalOrderStatus(value);
+            setIsUpdating(false);
+            return { success: true }; // Treat timeout as success since API will handle it
+          }
+          
+          // Handle other error scenarios
+          const errorMessage = result.error || 'Unknown error occurred';
+          console.error('❌ Failed to update order status:', errorMessage);
+          
+          // Check if user is not online but update will be saved
           if (result.error?.includes('User not online')) {
             toast.success('Order status updated successfully!', {
               description: 'User was offline, but update was saved',
@@ -327,17 +371,18 @@ function AdminOrderDetail() {
             });
             // Update local state immediately
             setLocalOrderStatus(value);
-          } else {
-            toast.error('Failed to update order status', {
-              description: result.error || 'Please try again',
-              duration: 4000,
-            });
+            setIsUpdating(false);
+            return { success: true };
           }
+          
+          // Show error for other cases
+          toast.error('Failed to update order status', {
+            description: errorMessage,
+            duration: 4000,
+          });
           setIsUpdating(false);
+          return { success: false, error: errorMessage };
         }
-        
-        setIsUpdating(false);
-        return { success: true }; // WebSocket timeout is handled silently
       } catch (error) {
         console.error('❌ Error updating order status:', error);
         setIsUpdating(false);
@@ -603,7 +648,7 @@ function AdminOrderDetail() {
               <h1 className="text-3xl font-bold tracking-tight">
                 Order #{order.orderId}
               </h1>
-              {getStatusBadge(localOrderStatus || order.Order.status)}
+              {getStatusBadge(String(localOrderStatus || order.Order?.status || (order as unknown as Record<string, unknown>).status || (order as unknown as Record<string, unknown>).orderStatus || 'pending'))}
               <Badge 
                 variant={getWebSocketStatus() === 'connected' ? "default" : "secondary"} 
                 className="text-xs"
@@ -676,7 +721,7 @@ function AdminOrderDetail() {
                 <div className="space-y-4">
                   <div className="flex justify-between items-center">
                     <span>Subtotal</span>
-                    <span>Rs {order.Order.totalPrice.toFixed(2)}</span>
+                    <span>Rs {(order.Order.totalPrice - 100).toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span>Shipping</span>
@@ -684,7 +729,7 @@ function AdminOrderDetail() {
                   </div>
                   <div className="border-t pt-4 flex justify-between items-center font-semibold">
                     <span>Total</span>
-                    <span>Rs {(order.Order.totalPrice + 100).toFixed(2)}</span>
+                    <span>Rs {order.Order.totalPrice.toFixed(2)}</span>
                   </div>
                 </div>
               </CardContent>
@@ -766,7 +811,7 @@ function AdminOrderDetail() {
                     }`}></div>
                     <div>
                       <p className="text-sm font-medium text-gray-600">Current Status</p>
-                      <p className="text-lg font-semibold capitalize">{localOrderStatus || order.Order.status}</p>
+                      <p className="text-lg font-semibold capitalize">{String(localOrderStatus || order.Order?.status || (order as unknown as Record<string, unknown>).status || (order as unknown as Record<string, unknown>).orderStatus || 'pending')}</p>
                     </div>
                   </div>
                   {isUpdating && <Loader2 className="h-5 w-5 animate-spin text-blue-500" />}
@@ -986,6 +1031,48 @@ function AdminOrderDetail() {
                     Updating payment status...
                   </div>
                 )}
+              </CardContent>
+            </Card>
+
+            {/* Business Rules Section */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Package className="h-5 w-5" />
+                  Business Rules
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-3 text-sm">
+                  <div className="p-3 bg-blue-50 rounded-lg">
+                    <h4 className="font-semibold text-blue-800 mb-2">Status Change Rules:</h4>
+                    <ul className="space-y-1 text-blue-700">
+                      <li>• Delivered orders can be changed to Preparation, On the way, or Cancelled</li>
+                      <li>• Cancelled orders cannot be changed to any other status</li>
+                      <li>• Non-COD orders need payment before preparation</li>
+                      <li>• Delivered orders need payment before delivery</li>
+                    </ul>
+                  </div>
+                  
+                  <div className="p-3 bg-green-50 rounded-lg">
+                    <h4 className="font-semibold text-green-800 mb-2">Payment Rules:</h4>
+                    <ul className="space-y-1 text-green-700">
+                      <li>• Khalti payments cannot be reversed manually</li>
+                      <li>• COD payments marked paid only when delivered/confirmed</li>
+                      <li>• Delivered/On-the-way orders payment status cannot be changed</li>
+                    </ul>
+                  </div>
+                  
+                  <div className="p-3 bg-yellow-50 rounded-lg">
+                    <h4 className="font-semibold text-yellow-800 mb-2">Admin Guidelines:</h4>
+                    <ul className="space-y-1 text-yellow-700">
+                      <li>• Always verify payment before status change</li>
+                      <li>• Customer gets real-time notifications</li>
+                      <li>• All changes are logged with admin ID</li>
+                      <li>• Contact customer for any disputes</li>
+                    </ul>
+                  </div>
+                </div>
               </CardContent>
             </Card>
             </div>

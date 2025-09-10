@@ -8,6 +8,7 @@ export interface IProduct {
   discount: number;
   originalPrice: number;
   price: number;
+  costPrice?: number; // Cost price for profit calculation (admin only)
   inStock: boolean;
   isNew: boolean;
   isActive?: boolean;
@@ -15,6 +16,8 @@ export interface IProduct {
   isNewArrival?: boolean;
   isBestSeller?: boolean;
   totalStock: number;
+  totalQuantitySold?: number; // Total quantity sold for analytics
+  totalRevenue?: number; // Total revenue for analytics
   createdAt: string;
   features: string[] |string;
   colors: string[]| string;
