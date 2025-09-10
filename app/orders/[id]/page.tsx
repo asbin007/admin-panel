@@ -1,6 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
+
+// Generate static params for dynamic route
+export async function generateStaticParams() {
+  // Return empty array for now - will be populated at build time
+  return [];
+}
 import NextImage from "next/image";
 import {
   ArrowLeft,
