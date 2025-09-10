@@ -144,8 +144,8 @@ export function fetchAdminChats() {
         }
         
         // Check if it's a network error
-        if (axiosError.code === 'NETWORK_ERROR' || axiosError.message?.includes('Network Error')) {
-          console.warn("⚠️ Network error - check your internet connection");
+        if (axiosError.code === 'NETWORK_ERROR' || axiosError.message?.includes('Network Error') || axiosError.code === 'ERR_NETWORK') {
+          console.warn("⚠️ Network error - Backend server may be down, using fallback");
         }
       }
       
