@@ -1,11 +1,5 @@
 "use client";
 
-// Generate static params for dynamic route
-export async function generateStaticParams() {
-  // Return empty array for now - will be populated at build time
-  return [];
-}
-
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
