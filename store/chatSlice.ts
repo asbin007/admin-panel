@@ -182,7 +182,7 @@ export function fetchCustomerChats() {
 export function fetchChatMessages(chatId: string) {
   return async function fetchChatMessagesThunk(dispatch: AppDispatch) {
     try {
-      const response = await APIS.get(`/chat/${chatId}/messages`);
+      const response = await APIS.get(`/chats/admin/${chatId}/messages`);
       
       if (response.status === 200) {
         dispatch(setMessages(response.data.data || []));
@@ -196,7 +196,7 @@ export function fetchChatMessages(chatId: string) {
 export function createChat(customerId: string) {
   return async function createChatThunk(dispatch: AppDispatch) {
     try {
-      const response = await APIS.post("/chat/get-or-create", { customerId });
+      const response = await APIS.post("/chats/get-or-create", { customerId });
       
       if (response.status === 201 || response.status === 200) {
         // Refresh chats list
@@ -212,7 +212,7 @@ export function createChat(customerId: string) {
 export function sendMessage(chatId: string, content: string) {
   return async function sendMessageThunk(dispatch: AppDispatch) {
     try {
-      const response = await APIS.post("/chat/send-message", { 
+      const response = await APIS.post("/chats/admin/send-message", { 
         chatId, 
         content 
       });
@@ -232,7 +232,7 @@ export function sendMessage(chatId: string, content: string) {
 export function markMessagesAsRead(chatId: string) {
   return async function markMessagesAsReadThunk(dispatch: AppDispatch) {
     try {
-      await APIS.post(`/chat/${chatId}/mark-read`);
+      await APIS.post(`/chats/${chatId}/mark-read`);
       dispatch(markChatAsRead(chatId));
     } catch (error) {
       console.error("Error marking messages as read:", error);

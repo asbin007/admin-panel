@@ -389,7 +389,7 @@ export default function ProductDetailsPage() {
               </div>
               <div className="flex justify-between">
                 <span className="text-sm font-medium">Cost Price:</span>
-                <span className="text-sm font-semibold text-green-600">Rs {product.costPrice?.toFixed(2) || 'N/A'}</span>
+                <span className="text-sm font-semibold text-green-600">Rs {product.costPrice ? Number(product.costPrice).toFixed(2) : 'N/A'}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-sm font-medium">Category:</span>

@@ -14,6 +14,7 @@ import { socket } from "@/app/app";
 import { useAppSelector, useAppDispatch } from "@/store/hooks";
 import { setUnreadCount } from "@/store/chatSlice";
 import NotificationToast from "@/components/NotificationToast";
+import { APIS } from "@/globals/http";
 
 interface Message {
   id: string;
@@ -69,6 +70,7 @@ export default function ChatPage() {
   const [imagePreview, setImagePreview] = useState<string>("");
   const [showImageDialog, setShowImageDialog] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isUserLoaded, setIsUserLoaded] = useState(false);
   const [notifications, setNotifications] = useState<Array<{
     id: string;
     message: Message;
@@ -140,15 +142,55 @@ export default function ChatPage() {
 
   const fetchAdminChats = async () => {
     try {
-      const { APIS } = await import("@/globals/http");
+      
+      // Debug authentication
+      const token = localStorage.getItem("tokenauth");
+      console.log("🔑 Token from localStorage:", token ? "Present" : "Missing");
+      console.log("👤 User from Redux store:", user);
+      console.log("👤 User array length:", user?.length);
+      console.log("👤 User role:", user?.[0]?.role);
+      console.log("👤 User ID:", user?.[0]?.id);
+      
+      // Check if user is authenticated
+      if (!token || !user || user.length === 0) {
+        console.log("❌ User not authenticated, redirecting to login");
+        window.location.href = "/user/login";
+        return;
+      }
+      
+      // Check if user has admin role
+      if (user[0]?.role !== 'admin') {
+        console.log("❌ User is not admin, redirecting to login");
+        window.location.href = "/user/login";
+        return;
+      }
       
       // Try to get admin chats using admin-specific endpoint
       const response = await APIS.get("/chats/admin/all");
       
       if (response.status === 200) {
         console.log("✅ Admin chats fetched successfully:", response.data);
-        setChats(response.data.data || []);
-        console.log("ℹ️ Admin chat list loaded with", response.data.data?.length || 0, "chats");
+        console.log("📊 Response structure:", {
+          hasData: !!response.data.data,
+          dataType: typeof response.data.data,
+          dataLength: response.data.data?.length,
+          fullResponse: response.data
+        });
+        
+        const chatData = response.data.data || [];
+        setChats(chatData);
+        console.log("ℹ️ Admin chat list loaded with", chatData.length, "chats");
+        
+        // Log each chat for debugging
+        chatData.forEach((chat: any, index: number) => {
+          console.log(`Chat ${index + 1}:`, {
+            id: chat.id,
+            adminId: chat.adminId,
+            customerId: chat.customerId,
+            customer: chat.Customer,
+            messages: chat.messages
+          });
+        });
       } else {
         console.error("Error fetching admin chat stats:", response.status);
         setChats([]);
@@ -161,7 +203,7 @@ export default function ChatPage() {
         const axiosError = error as { 
           code?: string; 
           message?: string; 
-          response?: { status?: number }; 
+          response?: { status?: number, data?: { message?: string } }; 
         };
         
         // Check if it's a request aborted error
@@ -170,16 +212,28 @@ export default function ChatPage() {
           return; // Don't set empty chats if request was aborted
         }
         
+        // Check if it's a 401 error (authentication issue)
+        if (axiosError.response?.status === 401) {
+          console.warn("⚠️ Authentication failed - redirecting to login");
+          window.location.href = "/user/login";
+          return;
+        }
+        
         // Check if it's a 403 error (role access issue)
         if (axiosError.response?.status === 403) {
-          console.warn("⚠️ Admin chat access denied - chat functionality may not be available for admin role");
-          console.warn("ℹ️ This is expected if chat system is customer-only");
+          console.warn("⚠️ Admin chat access denied - insufficient permissions");
+          setChats([]);
+          return;
         }
         
         // Check if it's a network error
-        if (axiosError.code === 'NETWORK_ERROR' || axiosError.message?.includes('Network Error')) {
-          console.warn("⚠️ Network error - check your internet connection");
+        if (axiosError.code === 'ERR_NETWORK' || axiosError.message?.includes('Network Error')) {
+          console.warn("⚠️ Network error - backend server may be down");
         }
+        
+        // Show user-friendly error message
+        const errorMessage = axiosError.response?.data?.message || axiosError.message || "Failed to load chats";
+        console.error("Chat loading error:", errorMessage);
       }
       
       setChats([]);
@@ -191,8 +245,20 @@ export default function ChatPage() {
   }, []);
 
   useEffect(() => {
-    // Fetch admin chats on component mount
-    fetchAdminChats();
+    // Mark user as loaded when user data is available
+    if (user && user.length > 0) {
+      setIsUserLoaded(true);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    // Only fetch admin chats if user is properly loaded
+    if (isUserLoaded && user && user.length > 0 && user[0]?.role === 'admin') {
+      fetchAdminChats();
+    } else if (isUserLoaded && user && user.length > 0 && user[0]?.role !== 'admin') {
+      console.log("❌ User is not admin, redirecting to login");
+      window.location.href = "/user/login";
+    }
 
     // Listen for new messages
     socket.on("receiveMessage", (message: Message) => {
@@ -258,7 +324,6 @@ export default function ChatPage() {
     setSelectedChat(chat);
     
     try {
-      const { APIS } = await import("@/globals/http");
       
       const response = await APIS.get(`/chats/admin/${chat.id}/messages`);
       
@@ -325,7 +390,6 @@ export default function ChatPage() {
       console.log("User ID:", user?.[0]?.id);
       console.log("Selected chat:", selectedChat);
 
-      const { APIS } = await import("@/globals/http");
       
       const response = await APIS.post("/chats/admin/send-message", messageData);
 
@@ -415,7 +479,6 @@ export default function ChatPage() {
     if (!selectedChat) return;
 
     try {
-      const { APIS } = await import("@/globals/http");
 
       const response = await APIS.post("/chats/admin/send-message", {
         chatId: selectedChat.id,
@@ -444,7 +507,6 @@ export default function ChatPage() {
 
     try {
       setIsLoading(true);
-      const { APIS } = await import("@/globals/http");
 
       console.log("Sending image - User object:", user);
       console.log("Sending image - User ID:", user?.[0]?.id);
@@ -598,6 +660,20 @@ export default function ChatPage() {
     const senderName = getSenderName(message);
     return senderName.charAt(0).toUpperCase();
   };
+
+  // Show loading state while user data is being loaded
+  if (!isUserLoaded) {
+    return (
+      <AdminLayout>
+        <div className="h-[calc(100vh-100px)] flex items-center justify-center bg-gradient-to-br from-slate-50 to-blue-50 dark:from-slate-900 dark:to-slate-800">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-slate-600 dark:text-slate-400">Loading chat...</p>
+          </div>
+        </div>
+      </AdminLayout>
+    );
+  }
 
   return (
     <AdminLayout>

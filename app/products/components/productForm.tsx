@@ -788,12 +788,12 @@ const AddProductForm: React.FC<AddProductFormProps> = ({ closeModal, editProduct
                         <CardContent className="space-y-4">
                           <div className="flex justify-between items-center">
                             <span className="text-muted-foreground">Cost Price:</span>
-                            <span className="font-semibold text-lg">Rs {formData.costPrice.toFixed(2)}</span>
+                            <span className="font-semibold text-lg">Rs {Number(formData.costPrice).toFixed(2)}</span>
                           </div>
 
                           <div className="flex justify-between items-center">
                             <span className="text-muted-foreground">Original Price:</span>
-                            <span className="font-semibold text-lg">Rs {formData.originalPrice.toFixed(2)}</span>
+                            <span className="font-semibold text-lg">Rs {Number(formData.originalPrice).toFixed(2)}</span>
                           </div>
 
                           {formData.discount > 0 && (
@@ -805,19 +805,19 @@ const AddProductForm: React.FC<AddProductFormProps> = ({ closeModal, editProduct
 
                           <div className="flex justify-between items-center text-xl font-bold border-t pt-4">
                             <span>Sale Price:</span>
-                            <span className="text-primary">Rs {formData.price.toFixed(2)}</span>
+                            <span className="text-primary">Rs {Number(formData.price).toFixed(2)}</span>
                           </div>
 
                           {formData.costPrice > 0 && formData.price > 0 && (
                             <div className="space-y-2 border-t pt-4">
                               <div className="flex justify-between items-center">
                                 <span className="text-muted-foreground">Profit per unit:</span>
-                                <span className="font-semibold text-green-600">Rs {(formData.price - formData.costPrice).toFixed(2)}</span>
+                                <span className="font-semibold text-green-600">Rs {(Number(formData.price) - Number(formData.costPrice)).toFixed(2)}</span>
                               </div>
                               <div className="flex justify-between items-center">
                                 <span className="text-muted-foreground">Profit %:</span>
                                 <span className="font-semibold text-green-600">
-                                  {formData.costPrice > 0 ? (((formData.price - formData.costPrice) / formData.costPrice) * 100).toFixed(1) : 0}%
+                                  {Number(formData.costPrice) > 0 ? (((Number(formData.price) - Number(formData.costPrice)) / Number(formData.costPrice)) * 100).toFixed(1) : 0}%
                                 </span>
                               </div>
                             </div>
@@ -828,7 +828,7 @@ const AddProductForm: React.FC<AddProductFormProps> = ({ closeModal, editProduct
                             formData.originalPrice !== formData.price && (
                               <div className="text-center">
                                 <Badge variant="secondary" className="bg-primary/10 text-primary">
-                                  You save Rs {(formData.originalPrice - formData.price).toFixed(2)}
+                                  You save Rs {(Number(formData.originalPrice) - Number(formData.price)).toFixed(2)}
                                 </Badge>
                               </div>
                             )}

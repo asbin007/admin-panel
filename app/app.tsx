@@ -8,6 +8,7 @@ import { useEffect, useState, Component } from 'react';
 
 // Socket URL configuration
 const SOCKET_URL = "https://nike-backend-1-g9i6.onrender.com";
+// const SOCKET_URL = "http://localhost:5000";
 
 // Error Boundary Component
 interface ErrorBoundaryState {

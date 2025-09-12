@@ -1193,7 +1193,7 @@ export default function Dashboard() {
                           </div>
                         </td>
                         <td className="text-right p-3">
-                          <span className="font-medium">Rs {product.price.toFixed(2)}</span>
+                          <span className="font-medium">Rs {Number(product.price).toFixed(2)}</span>
                         </td>
                         <td className="text-right p-3">
                           <span className={`font-medium ${
