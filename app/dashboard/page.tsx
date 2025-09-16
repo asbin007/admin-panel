@@ -256,8 +256,8 @@ export default function Dashboard() {
         ...product,
         quantitySold: product.totalQuantitySold || 0,
         revenue: product.totalRevenue || 0,
-        profit: product.totalProfit || 0,
-        stock: product.totalStock || product.stock || 0,
+        profit: (product.totalQuantitySold || 0) * ((product.price || 0) - (product.costPrice || 0)),
+        stock: product.totalStock || 0,
       }))
       .sort((a, b) => b.quantitySold - a.quantitySold)
       .slice(0, 5);
