@@ -112,6 +112,18 @@ export function fetchAdminChats() {
     try {
       dispatch(setStatus(Status.LOADING));
       
+      // Check if token exists before making request
+      const token = localStorage.getItem("tokenauth");
+      if (!token) {
+        console.error("❌ No authentication token found");
+        dispatch(setChats([]));
+        dispatch(setStatus(Status.ERROR));
+        return;
+      }
+      
+      console.log("🔑 Token found, making request to /chats/admin/all");
+      console.log("🌐 Full URL:", "https://nike-backend-1-g9i6.onrender.com/api/chats/admin/all");
+      
       // Try to get admin chats using admin-specific endpoint
       const response = await APIS.get("/chats/admin/all");
       
@@ -130,6 +142,19 @@ export function fetchAdminChats() {
       // Handle different types of errors
       if (error && typeof error === 'object') {
         const axiosError = error as any;
+        
+        // Check if it's a 401 error (authentication issue)
+        if (axiosError.response?.status === 401) {
+          console.error("❌ Authentication failed - Token may be invalid or expired");
+          console.error("🔑 Current token:", localStorage.getItem("tokenauth")?.substring(0, 20) + "...");
+          console.error("📋 Error details:", axiosError.response?.data);
+          
+          // Clear invalid token
+          localStorage.removeItem("tokenauth");
+          localStorage.removeItem("userData");
+          dispatch(setStatus(Status.ERROR));
+          return;
+        }
         
         // Check if it's a request aborted error
         if (axiosError.code === 'ERR_CANCELED' || axiosError.message === 'Request aborted') {
