@@ -784,7 +784,7 @@ export default function Dashboard() {
                         {index + 1}
                       </div>
                       <Image
-                        src={product.image || '/placeholder-image.svg'}
+                        src={product.images?.[0] || '/placeholder-image.svg'}
                         alt={product.name}
                         width={40}
                         height={40}

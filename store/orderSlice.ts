@@ -80,6 +80,7 @@ export interface IOrder {
     totalPrice: number;
     state: string;
     userId: string;
+    createdAt?: string;
     Payment: {
       id: string;
       paymentMethod: PaymentMethod;
