@@ -224,8 +224,8 @@ export default function Dashboard() {
     }).length;
 
     // Stock analysis
-    const lowStockProducts = products?.filter(p => (p.totalStock || p.stock || 0) > 0 && (p.totalStock || p.stock || 0) <= 5).length || 0;
-    const outOfStockProducts = products?.filter(p => (p.totalStock || p.stock || 0) === 0).length || 0;
+    const lowStockProducts = products?.filter(p => (p.totalStock || 0) > 0 && (p.totalStock || 0) <= 5).length || 0;
+    const outOfStockProducts = products?.filter(p => (p.totalStock || 0) === 0).length || 0;
 
     return {
       totalRevenue,
