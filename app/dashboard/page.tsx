@@ -295,7 +295,7 @@ export default function Dashboard() {
           id: order.id,
           fullName,
           status: order.orderStatus || order.status || order.Order?.status || 'pending',
-          amount: order.totalAmount || order.Order?.totalAmount || order.totalPrice || 0,
+          amount: order.totalPrice || order.Order?.totalPrice || 0,
           phone,
           createdAt: order.createdAt || order.Order?.createdAt || new Date().toISOString()
         };
