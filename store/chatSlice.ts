@@ -1,266 +1,379 @@
- import { createSlice, PayloadAction } from "@reduxjs/toolkit";
-import { Status } from "./authSlice";
-import { APIS } from "@/globals/http";
-import { AppDispatch } from "./store";
+import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
+import { APIS } from '../globals/http';
+
+// Types
+export interface User {
+  id: string;
+  username: string;
+  email: string;
+  role: string;
+}
 
 export interface Message {
   id: string;
-  content: string;
+  chatId: string;
   senderId: string;
   receiverId: string;
-  chatId: string;
+  content: string;
+  messageType: 'text' | 'image' | 'file' | 'system';
+  imageUrl?: string;
+  fileUrl?: string;
+  fileName?: string;
+  fileSize?: number;
+  isRead: boolean;
+  readAt?: string;
+  isEdited: boolean;
+  editedAt?: string;
+  replyToId?: string;
   createdAt: string;
-  read: boolean;
-  Sender?: {
-    id: string;
-    username: string;
-    role: string;
-  };
+  updatedAt: string;
+  Sender?: User;
+  Receiver?: User;
 }
 
 export interface Chat {
   id: string;
   customerId: string;
   adminId: string;
+  lastMessage?: string;
+  lastMessageAt?: string;
+  isActive: boolean;
+  unreadCount: number;
   createdAt: string;
   updatedAt: string;
-  Customer?: {
-    id: string;
-    username: string;
-    email: string;
-  };
-  Admin?: {
-    id: string;
-    username: string;
-    email: string;
-  };
+  Customer?: User;
+  Admin?: User;
   Messages?: Message[];
-  unreadCount?: number;
+}
+
+export enum Status {
+  IDLE = 'idle',
+  LOADING = 'loading',
+  SUCCESS = 'success',
+  ERROR = 'error',
 }
 
 interface ChatState {
   chats: Chat[];
   currentChat: Chat | null;
   messages: Message[];
+  adminUsers: User[];
   status: Status;
+  error: string | null;
   unreadCount: number;
+  isTyping: boolean;
+  typingUsers: string[];
 }
 
 const initialState: ChatState = {
   chats: [],
   currentChat: null,
   messages: [],
-  status: Status.SUCCESS,
+  adminUsers: [],
+  status: Status.IDLE,
+  error: null,
   unreadCount: 0,
+  isTyping: false,
+  typingUsers: [],
 };
 
+// Async thunks
+export const fetchAdminUsers = createAsyncThunk(
+  'chat/fetchAdminUsers',
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await APIS.get('/chats/admins');
+      return response.data.data;
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to fetch admin users');
+    }
+  }
+);
+
+export const createOrGetChat = createAsyncThunk(
+  'chat/createOrGetChat',
+  async ({ adminId }: { adminId: string }, { rejectWithValue }) => {
+    try {
+      const response = await APIS.post('/chats/create-or-get', { adminId });
+      return response.data.data;
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to create/get chat');
+    }
+  }
+);
+
+export const fetchAllChats = createAsyncThunk(
+  'chat/fetchAllChats',
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await APIS.get('/chats/admin/all');
+      return response.data.data;
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to fetch chats');
+    }
+  }
+);
+
+export const fetchChatMessages = createAsyncThunk(
+  'chat/fetchChatMessages',
+  async ({ chatId, page = 1, limit = 50 }: { chatId: string; page?: number; limit?: number }, { rejectWithValue }) => {
+    try {
+      const response = await APIS.get(`/chats/admin/${chatId}/messages?page=${page}&limit=${limit}`);
+      return response.data.data;
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to fetch messages');
+    }
+  }
+);
+
+export const sendMessage = createAsyncThunk(
+  'chat/sendMessage',
+  async ({ chatId, content, messageType = 'text', replyToId, image }: { 
+    chatId: string; 
+    content: string; 
+    messageType?: 'text' | 'image' | 'file' | 'system';
+    replyToId?: string;
+    image?: File;
+  }, { rejectWithValue }) => {
+    try {
+      const formData = new FormData();
+      formData.append('chatId', chatId);
+      formData.append('content', content);
+      formData.append('messageType', messageType);
+      if (replyToId) formData.append('replyToId', replyToId);
+      if (image) formData.append('image', image);
+
+      const response = await APIS.post('/chats/admin/send-message', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      return response.data.data;
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to send message');
+    }
+  }
+);
+
+export const markMessagesAsRead = createAsyncThunk(
+  'chat/markMessagesAsRead',
+  async (chatId: string, { rejectWithValue }) => {
+    try {
+      await APIS.post(`/chats/admin/${chatId}/mark-read`);
+      return chatId;
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to mark messages as read');
+    }
+  }
+);
+
+export const fetchUnreadCount = createAsyncThunk(
+  'chat/fetchUnreadCount',
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await APIS.get('/chats/admin/unread/count');
+      return response.data.data.unreadCount;
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to fetch unread count');
+    }
+  }
+);
+
+// Chat slice
 const chatSlice = createSlice({
-  name: "chat",
+  name: 'chat',
   initialState,
   reducers: {
-    setChats: (state, action: PayloadAction<Chat[]>) => {
-      state.chats = action.payload;
-    },
     setCurrentChat: (state, action: PayloadAction<Chat | null>) => {
       state.currentChat = action.payload;
     },
-    setMessages: (state, action: PayloadAction<Message[]>) => {
-      state.messages = action.payload;
-    },
     addMessage: (state, action: PayloadAction<Message>) => {
+      if (!state.messages) {
+        state.messages = [];
+      }
       state.messages.push(action.payload);
+    },
+    updateMessage: (state, action: PayloadAction<Message>) => {
+      if (!state.messages) {
+        state.messages = [];
+      }
+      const index = state.messages.findIndex(msg => msg.id === action.payload.id);
+      if (index !== -1) {
+        state.messages[index] = action.payload;
+      }
+    },
+    setTyping: (state, action: PayloadAction<{ isTyping: boolean; userId?: string }>) => {
+      state.isTyping = action.payload.isTyping;
+      if (action.payload.userId) {
+        if (!state.typingUsers) {
+          state.typingUsers = [];
+        }
+        if (action.payload.isTyping) {
+          state.typingUsers.push(action.payload.userId);
+        } else {
+          state.typingUsers = state.typingUsers.filter(id => id !== action.payload.userId);
+        }
+      }
+    },
+    clearTyping: (state) => {
+      state.isTyping = false;
+      state.typingUsers = [];
     },
     updateChatLastMessage: (state, action: PayloadAction<{ chatId: string; message: Message }>) => {
       const chat = state.chats.find(c => c.id === action.payload.chatId);
       if (chat) {
-        chat.Messages = chat.Messages || [];
-        chat.Messages.push(action.payload.message);
-        chat.updatedAt = action.payload.message.createdAt;
+        chat.lastMessage = action.payload.message.content;
+        chat.lastMessageAt = action.payload.message.createdAt;
+        chat.unreadCount += 1;
       }
-    },
-    setStatus: (state, action: PayloadAction<Status>) => {
-      state.status = action.payload;
-    },
-    setUnreadCount: (state, action: PayloadAction<number>) => {
-      state.unreadCount = action.payload;
     },
     markChatAsRead: (state, action: PayloadAction<string>) => {
       const chat = state.chats.find(c => c.id === action.payload);
       if (chat) {
         chat.unreadCount = 0;
       }
+      if (state.messages) {
+        state.messages.forEach(msg => {
+          if (msg.chatId === action.payload) {
+            msg.isRead = true;
+          }
+        });
+      }
     },
+    clearError: (state) => {
+      state.error = null;
+    },
+    resetChatState: (state) => {
+      state.chats = [];
+      state.currentChat = null;
+      state.messages = [];
+      state.adminUsers = [];
+      state.status = Status.IDLE;
+      state.error = null;
+      state.unreadCount = 0;
+      state.isTyping = false;
+      state.typingUsers = [];
+    },
+  },
+  extraReducers: (builder) => {
+    // Fetch admin users
+    builder
+      .addCase(fetchAdminUsers.pending, (state) => {
+        state.status = Status.LOADING;
+      })
+      .addCase(fetchAdminUsers.fulfilled, (state, action) => {
+        state.status = Status.SUCCESS;
+        state.adminUsers = action.payload;
+      })
+      .addCase(fetchAdminUsers.rejected, (state, action) => {
+        state.status = Status.ERROR;
+        state.error = action.payload as string;
+      });
+
+    // Create or get chat
+    builder
+      .addCase(createOrGetChat.pending, (state) => {
+        state.status = Status.LOADING;
+      })
+      .addCase(createOrGetChat.fulfilled, (state, action) => {
+        state.status = Status.SUCCESS;
+        state.currentChat = action.payload;
+        // Add to chats if not already present
+        const existingChat = state.chats.find(c => c.id === action.payload.id);
+        if (!existingChat) {
+          state.chats.unshift(action.payload);
+        }
+      })
+      .addCase(createOrGetChat.rejected, (state, action) => {
+        state.status = Status.ERROR;
+        state.error = action.payload as string;
+      });
+
+    // Fetch all chats
+    builder
+      .addCase(fetchAllChats.pending, (state) => {
+        state.status = Status.LOADING;
+      })
+      .addCase(fetchAllChats.fulfilled, (state, action) => {
+        state.status = Status.SUCCESS;
+        state.chats = action.payload;
+      })
+      .addCase(fetchAllChats.rejected, (state, action) => {
+        state.status = Status.ERROR;
+        state.error = action.payload as string;
+      });
+
+    // Fetch chat messages
+    builder
+      .addCase(fetchChatMessages.pending, (state) => {
+        state.status = Status.LOADING;
+      })
+      .addCase(fetchChatMessages.fulfilled, (state, action) => {
+        state.status = Status.SUCCESS;
+        state.messages = action.payload.messages;
+      })
+      .addCase(fetchChatMessages.rejected, (state, action) => {
+        state.status = Status.ERROR;
+        state.error = action.payload as string;
+      });
+
+    // Send message
+    builder
+      .addCase(sendMessage.pending, (state) => {
+        state.status = Status.LOADING;
+      })
+      .addCase(sendMessage.fulfilled, (state, action) => {
+        state.status = Status.SUCCESS;
+        if (!state.messages) {
+          state.messages = [];
+        }
+        state.messages.push(action.payload);
+        // Update chat last message
+        const chat = state.chats.find(c => c.id === action.payload.chatId);
+        if (chat) {
+          chat.lastMessage = action.payload.content;
+          chat.lastMessageAt = action.payload.createdAt;
+        }
+      })
+      .addCase(sendMessage.rejected, (state, action) => {
+        state.status = Status.ERROR;
+        state.error = action.payload as string;
+      });
+
+    // Mark messages as read
+    builder
+      .addCase(markMessagesAsRead.fulfilled, (state, action) => {
+        const chat = state.chats.find(c => c.id === action.payload);
+        if (chat) {
+          chat.unreadCount = 0;
+        }
+        if (state.messages) {
+          state.messages.forEach(msg => {
+            if (msg.chatId === action.payload) {
+              msg.isRead = true;
+            }
+          });
+        }
+      });
+
+    // Fetch unread count
+    builder
+      .addCase(fetchUnreadCount.fulfilled, (state, action) => {
+        state.unreadCount = action.payload;
+      });
   },
 });
 
 export const {
-  setChats,
   setCurrentChat,
-  setMessages,
   addMessage,
+  updateMessage,
+  setTyping,
+  clearTyping,
   updateChatLastMessage,
-  setStatus,
-  setUnreadCount,
   markChatAsRead,
+  clearError,
+  resetChatState,
 } = chatSlice.actions;
 
 export default chatSlice.reducer;
-
-// Thunks
-export function fetchAdminChats() {
-  return async function fetchAdminChatsThunk(dispatch: AppDispatch) {
-    try {
-      dispatch(setStatus(Status.LOADING));
-      
-      // Check if token exists before making request
-      const token = localStorage.getItem("tokenauth");
-      if (!token) {
-        console.error("❌ No authentication token found");
-        dispatch(setChats([]));
-        dispatch(setStatus(Status.ERROR));
-        return;
-      }
-      
-      console.log("🔑 Token found, making request to /chats/admin/all");
-      console.log("🌐 Full URL:", "https://nike-backend-1-g9i6.onrender.com/api/chats/admin/all");
-      
-      // Try to get admin chats using admin-specific endpoint
-      const response = await APIS.get("/chats/admin/all");
-      
-      if (response.status === 200) {
-        dispatch(setChats(response.data.data || []));
-        dispatch(setStatus(Status.SUCCESS));
-        console.log("✅ Admin chats loaded successfully with", response.data.data?.length || 0, "chats");
-      } else {
-        console.log("⚠️ Chat stats endpoint returned error, using fallback");
-        dispatch(setChats([]));
-        dispatch(setStatus(Status.SUCCESS));
-      }
-    } catch (error) {
-      console.error("Error fetching admin chats:", error);
-      
-      // Handle different types of errors
-      if (error && typeof error === 'object') {
-        const axiosError = error as any;
-        
-        // Check if it's a 401 error (authentication issue)
-        if (axiosError.response?.status === 401) {
-          console.error("❌ Authentication failed - Token may be invalid or expired");
-          console.error("🔑 Current token:", localStorage.getItem("tokenauth")?.substring(0, 20) + "...");
-          console.error("📋 Error details:", axiosError.response?.data);
-          
-          // Clear invalid token
-          localStorage.removeItem("tokenauth");
-          localStorage.removeItem("userData");
-          dispatch(setStatus(Status.ERROR));
-          return;
-        }
-        
-        // Check if it's a request aborted error
-        if (axiosError.code === 'ERR_CANCELED' || axiosError.message === 'Request aborted') {
-          console.warn("⚠️ Request was aborted - this is normal during component unmount");
-          return; // Don't dispatch empty chats if request was aborted
-        }
-        
-        // Check if it's a 403 error (role access issue)
-        if (axiosError.response?.status === 403) {
-          console.warn("⚠️ Admin chat access denied - chat functionality may not be available for admin role");
-          console.warn("ℹ️ This is expected if chat system is customer-only");
-        }
-        
-        // Check if it's a network error
-        if (axiosError.code === 'NETWORK_ERROR' || axiosError.message?.includes('Network Error') || axiosError.code === 'ERR_NETWORK') {
-          console.warn("⚠️ Network error - Backend server may be down, using fallback");
-        }
-      }
-      
-      dispatch(setChats([]));
-      dispatch(setStatus(Status.SUCCESS));
-    }
-  };
-}
-
-export function fetchCustomerChats() {
-  return async function fetchCustomerChatsThunk(dispatch: AppDispatch) {
-    try {
-      dispatch(setStatus(Status.LOADING));
-      
-      const response = await APIS.get("/chats/all");
-      
-      if (response.status === 200) {
-        dispatch(setChats(response.data.data || []));
-        dispatch(setStatus(Status.SUCCESS));
-        console.log("✅ Customer chats loaded successfully");
-      } else {
-        console.log("⚠️ Customer chat endpoint returned error, using fallback");
-        dispatch(setChats([]));
-        dispatch(setStatus(Status.SUCCESS));
-      }
-    } catch (error) {
-      console.error("Error fetching customer chats:", error);
-      dispatch(setChats([]));
-      dispatch(setStatus(Status.SUCCESS));
-    }
-  };
-}
-
-export function fetchChatMessages(chatId: string) {
-  return async function fetchChatMessagesThunk(dispatch: AppDispatch) {
-    try {
-      const response = await APIS.get(`/chats/admin/${chatId}/messages`);
-      
-      if (response.status === 200) {
-        dispatch(setMessages(response.data.data || []));
-      }
-    } catch (error) {
-      console.error("Error fetching chat messages:", error);
-    }
-  };
-}
-
-export function createChat(customerId: string) {
-  return async function createChatThunk(dispatch: AppDispatch) {
-    try {
-      const response = await APIS.post("/chats/get-or-create", { customerId });
-      
-      if (response.status === 201 || response.status === 200) {
-        // Refresh chats list
-        dispatch(fetchAdminChats());
-        return response.data.data;
-      }
-    } catch (error) {
-      console.error("Error creating chat:", error);
-    }
-  };
-}
-
-export function sendMessage(chatId: string, content: string) {
-  return async function sendMessageThunk(dispatch: AppDispatch) {
-    try {
-      const response = await APIS.post("/chats/admin/send-message", { 
-        chatId, 
-        content 
-      });
-      
-      if (response.status === 201 || response.status === 200) {
-        const message = response.data.data;
-        dispatch(addMessage(message));
-        dispatch(updateChatLastMessage({ chatId, message }));
-        return message;
-      }
-    } catch (error) {
-      console.error("Error sending message:", error);
-    }
-  };
-}
-
-export function markMessagesAsRead(chatId: string) {
-  return async function markMessagesAsReadThunk(dispatch: AppDispatch) {
-    try {
-      await APIS.post(`/chats/${chatId}/mark-read`);
-      dispatch(markChatAsRead(chatId));
-    } catch (error) {
-      console.error("Error marking messages as read:", error);
-    }
-  };
-} 

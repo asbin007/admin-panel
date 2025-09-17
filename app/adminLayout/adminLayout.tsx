@@ -10,7 +10,6 @@ import {
   ShoppingCart,
   Star,
   Users,
-  MessageCircle,
   Settings,
   LogOut,
   BarChart3,
@@ -30,12 +29,14 @@ import {
 import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import AdminSearch from "@/components/features/admin-search";
 import { ModeToggle } from "@/components/ui/mode-toogle";
+import RoleSwitcher from "@/components/RoleSwitcher";
 import { useRouter } from "next/navigation";
 import { useAppSelector } from "@/store/hooks";
 import { useEffect, useState, useCallback } from "react";
 import Cookies from "js-cookie";
 import { socket } from "@/app/app";
 import NotificationToast from "@/components/NotificationToast";
+import DebugChatWidget from "@/components/DebugChatWidget";
 
 
 export default function AdminLayout({
@@ -273,13 +274,6 @@ export default function AdminLayout({
                 <Star className="h-4 w-4" />
                 Reviews
               </Link>
-                             <Link
-                 href="/chat"
-                 className="flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary"
-               >
-                 <MessageCircle className="h-4 w-4" />
-                 Chat
-               </Link>
                <Link
                  href="/settings"
                  className="flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary"
@@ -369,13 +363,6 @@ export default function AdminLayout({
                   <Star className="h-5 w-5" />
                   Reviews
                 </Link>
-                                 <Link
-                   href="/chat"
-                   className="mx-[-0.65rem] flex items-center gap-4 rounded-xl px-3 py-2 text-muted-foreground hover:text-foreground"
-                 >
-                   <MessageCircle className="h-5 w-5" />
-                   Chat
-                 </Link>
                  <Link
                    href="/settings"
                    className="mx-[-0.65rem] flex items-center gap-4 rounded-xl px-3 py-2 text-muted-foreground hover:text-foreground"
@@ -392,67 +379,11 @@ export default function AdminLayout({
             <AdminSearch />
           </div>
           <ModeToggle />
-          <Link href="/chat">
-            <Button variant="outline" size="icon" className="relative">
-              <MessageCircle className="h-5 w-5" />
-              <span className="sr-only">Messages</span>
-              {/* Unread message indicator */}
-              {unreadCount > 0 && (
-                <div className={`absolute -top-1 -right-1 bg-red-500 rounded-full animate-pulse flex items-center justify-center ${
-                  unreadCount > 9 ? 'w-4 h-4' : 'w-3 h-3'
-                }`}>
-                  <span className="text-xs text-white font-bold">{unreadCount > 9 ? '9+' : unreadCount}</span>
-                </div>
-              )}
-            </Button>
-          </Link>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="secondary" size="icon" className="rounded-full">
-                <CircleUser className="h-5 w-5" />
-                <span className="sr-only">Toggle user menu</span>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuLabel className="font-normal">
-                <div className="flex flex-col space-y-1">
-                  <p className="text-sm font-medium leading-none">
-                    {user?.username || "Admin"}
-                  </p>
-                  <p className="text-xs leading-none text-muted-foreground">
-                    {user?.email || "admin@shoemart.com"}
-                  </p>
-                                     <Badge variant="secondary" className="w-fit mt-1">
-                     Admin
-                   </Badge>
-                   <p className="text-xs text-muted-foreground">
-                     Role: {user?.role || 'Unknown'}
-                   </p>
-                </div>
-              </DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              
-              
-              
-              {/* Remove the unsafe "Always show switch to super admin for testing" section */}
-              
-                             <DropdownMenuItem asChild>
-                 <Link href="/settings" className="flex items-center">
-                   <Settings className="h-4 w-4 mr-2" />
-                   Settings
-                 </Link>
-               </DropdownMenuItem>
-              <DropdownMenuItem>
-                <MessageCircle className="h-4 w-4 mr-2" />
-                Support
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handleLogout} className="text-red-600 dark:text-red-400">
-                <LogOut className="h-4 w-4 mr-2" />
-                Logout
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <RoleSwitcher 
+            currentRole={user?.role || 'admin'} 
+            currentUser={user}
+            onLogout={handleLogout}
+          />
         </header>
         <main className="flex flex-1 flex-col gap-2 sm:gap-4 p-2 sm:p-4 lg:gap-6 lg:p-6">
           {children}
@@ -471,6 +402,8 @@ export default function AdminLayout({
         </div>
       ))}
       
+      {/* Debug Chat Widget */}
+      <DebugChatWidget />
     </div>
   );
 }

@@ -1,119 +1,79 @@
 "use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Eye, EyeOff, Lock, Mail, ArrowRight, Loader2, Package2 } from "lucide-react";
+import { Eye, EyeOff, Lock, Mail, ArrowRight, Loader2, Package2, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { useAppDispatch } from "@/store/hooks";
-import { ChangeEvent, FormEvent, useState } from "react";
-import { useRouter } from "next/navigation";
-import { loginUser } from "@/store/authSlice";
-import store from "@/store/store";
+import { APIS } from "@/globals/http";
 
-// Removed exported description to fix build error
-
-export default function LoginForm() {
+export default function SuperAdminLoginPage() {
   const router = useRouter();
-  const dispatch = useAppDispatch();
-  const [data, setData] = useState({
-    email: "",
-    password: "",
+  const [formData, setFormData] = useState({
+    email: "super@gmail.com",
+    password: "12345678"
   });
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
-  const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setData({
-      ...data,
-      [name]: value,
+    setFormData({
+      ...formData,
+      [name]: value
     });
   };
 
-  const handleSubmit = async(e: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError("");
     setSuccess("");
 
     try {
-      const result = await dispatch(loginUser(data));
-      console.log('Login result:', result);
-      
-      // Check if login was successful by looking at the status
-      const currentStatus = store.getState().auth.status;
-      console.log('Current auth status:', currentStatus);
-      
-      if (currentStatus === 'success') {
-        // Get user data from Redux store
-        const userData = store.getState().auth.user;
-        console.log('User data from store:', userData);
+      const response = await APIS.post("/auth/super-admin/login", formData);
+
+      if (response.status === 200) {
+        const { token, user } = response.data;
         
-        // Save user data to localStorage for role-based access
-        if (userData && Array.isArray(userData) && userData.length > 0) {
-          const user = userData[0];
-          const userInfo = {
-            id: user.id,
-            username: user.username,
-            email: user.email,
-            role: user.role || 'admin',
-            isVerified: true
-          };
-          localStorage.setItem("userData", JSON.stringify(userInfo));
-          console.log('User data saved to localStorage:', userInfo);
-        } else {
-          // Fallback: create user data from login response
-          const userInfo = {
-            id: data.email, // Use email as ID if not available
-            username: data.email.split('@')[0], // Use email prefix as username
-            email: data.email,
-            role: 'admin',
-            isVerified: true
-          };
-          localStorage.setItem("userData", JSON.stringify(userInfo));
-          console.log('Fallback user data saved:', userInfo);
-        }
+        // Store token and user data
+        localStorage.setItem("tokenauth", token);
+        localStorage.setItem("userData", JSON.stringify(user));
         
-        setSuccess("Login successful! Redirecting...");
-        console.log('Login successful, redirecting to dashboard...');
+        setSuccess("Super admin login successful! Redirecting...");
         
-        // Immediate redirect without delay
-        router.push("/dashboard");
-      } else {
-        setError("Invalid email or password");
-        console.log('Login failed, status:', currentStatus);
+        // Redirect to super admin dashboard
+        setTimeout(() => {
+          router.push("/super-admin/dashboard");
+        }, 1500);
       }
-    } catch (error) {
-      console.error('Login error:', error);
-      setError("Network error. Please try again.");
+    } catch (error: any) {
+      console.error("Super admin login error:", error);
+      setError(error.response?.data?.message || "Login failed. Please try again.");
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-purple-50 to-indigo-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         {/* Logo and Brand */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-2xl mb-4 shadow-lg">
-            <Package2 className="h-8 w-8 text-white" />
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-purple-600 to-indigo-700 rounded-2xl mb-4 shadow-lg">
+            <Shield className="h-8 w-8 text-white" />
           </div>
           <h1 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">
             SHOEMART
           </h1>
           <p className="text-slate-600 dark:text-slate-400">
-            Admin Portal
+            Super Admin Portal
           </p>
         </div>
 
@@ -121,10 +81,10 @@ export default function LoginForm() {
         <Card className="shadow-2xl border-0 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm">
           <CardHeader className="space-y-1 pb-6">
             <CardTitle className="text-2xl font-bold text-center text-slate-900 dark:text-white">
-              Admin Login
+              Super Admin Login
             </CardTitle>
             <CardDescription className="text-center text-slate-600 dark:text-slate-400">
-              Sign in to access the admin dashboard
+              Access the super admin dashboard
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -140,10 +100,10 @@ export default function LoginForm() {
                     id="email"
                     name="email"
                     type="email"
-                    placeholder="admin@shoemart.com"
-                    value={data.email}
+                    placeholder="superadmin@shoemart.com"
+                    value={formData.email}
                     onChange={handleChange}
-                    className="pl-10 h-12 bg-white/70 dark:bg-slate-700/70 border-slate-200 dark:border-slate-600 focus:ring-2 focus:ring-blue-500/20 transition-all duration-200"
+                    className="pl-10 h-12 bg-white/70 dark:bg-slate-700/70 border-slate-200 dark:border-slate-600 focus:ring-2 focus:ring-purple-500/20 transition-all duration-200"
                     required
                     disabled={isLoading}
                   />
@@ -162,9 +122,9 @@ export default function LoginForm() {
                     name="password"
                     type={showPassword ? "text" : "password"}
                     placeholder="Enter your password"
-                    value={data.password}
+                    value={formData.password}
                     onChange={handleChange}
-                    className="pl-10 pr-10 h-12 bg-white/70 dark:bg-slate-700/70 border-slate-200 dark:border-slate-600 focus:ring-2 focus:ring-blue-500/20 transition-all duration-200"
+                    className="pl-10 pr-10 h-12 bg-white/70 dark:bg-slate-700/70 border-slate-200 dark:border-slate-600 focus:ring-2 focus:ring-purple-500/20 transition-all duration-200"
                     required
                     disabled={isLoading}
                   />
@@ -205,7 +165,7 @@ export default function LoginForm() {
               {/* Submit Button */}
               <Button
                 type="submit"
-                className="w-full h-12 bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200"
+                className="w-full h-12 bg-gradient-to-r from-purple-600 to-indigo-700 hover:from-purple-700 hover:to-indigo-800 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200"
                 disabled={isLoading}
               >
                 {isLoading ? (
@@ -215,7 +175,7 @@ export default function LoginForm() {
                   </>
                 ) : (
                   <>
-                    Sign In as Admin
+                    Sign In as Super Admin
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </>
                 )}
@@ -234,33 +194,24 @@ export default function LoginForm() {
               </div>
             </div>
 
-            {/* Registration and Super Admin Links */}
+            {/* Other Login Links */}
             <div className="text-center space-y-2">
               <p className="text-sm text-slate-600 dark:text-slate-400">
-                Don't have an admin account?{" "}
+                Regular admin?{" "}
+                <Link
+                  href="/user/login"
+                  className="font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 transition-colors"
+                >
+                  Admin Login
+                </Link>
+              </p>
+              <p className="text-sm text-slate-600 dark:text-slate-400">
+                Need admin account?{" "}
                 <Link
                   href="/admin-register"
                   className="font-semibold text-green-600 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300 transition-colors"
                 >
                   Create Admin Account
-                </Link>
-              </p>
-              <p className="text-sm text-slate-600 dark:text-slate-400">
-                Need customer account?{" "}
-                <Link
-                  href="/user/register"
-                  className="font-semibold text-purple-600 hover:text-purple-700 dark:text-purple-400 dark:hover:text-purple-300 transition-colors"
-                >
-                  Customer Registration
-                </Link>
-              </p>
-              <p className="text-sm text-slate-600 dark:text-slate-400">
-                Super admin?{" "}
-                <Link
-                  href="/super-admin/login"
-                  className="font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 transition-colors"
-                >
-                  Sign in here
                 </Link>
               </p>
             </div>
@@ -273,7 +224,7 @@ export default function LoginForm() {
             © 2024 SHOEMART. All rights reserved.
           </p>
           <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
-            Admin Access Only
+            Super Admin Access Only
           </p>
         </div>
       </div>

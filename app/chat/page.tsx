@@ -1,950 +1,385 @@
 "use client";
 
-import { useEffect, useState, useRef, useCallback } from "react";
-import { Send, MessageCircle, Search, Image, MapPin, X, Check, CheckCheck } from "lucide-react";
-import NextImage from "next/image";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-// Removed unused Card imports
-import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import AdminLayout from "../adminLayout/adminLayout";
-import { socket } from "@/app/app";
-import { useAppSelector, useAppDispatch } from "@/store/hooks";
-import { setUnreadCount } from "@/store/chatSlice";
-import NotificationToast from "@/components/NotificationToast";
-import { APIS } from "@/globals/http";
+import React, { useEffect, useRef, useState, useCallback } from "react";
+import { useAppDispatch, useAppSelector } from "../../store/hooks";
+import { 
+  fetchAllChats, 
+  fetchChatMessages, 
+  sendMessage, 
+  markMessagesAsRead,
+  addMessage,
+  setTyping,
+  clearTyping,
+  updateChatLastMessage,
+  markChatAsRead,
+  setCurrentChat,
+  type Message,
+  type Chat
+} from "../../store/chatSlice";
+import { socket } from "../app";
+import { 
+  Send, 
+  Image, 
+  X, 
+  MessageCircle, 
+  Phone, 
+  Video, 
+  MoreVertical,
+  Smile,
+  Paperclip,
+  Check,
+  CheckCheck,
+  Search,
+  Filter,
+  Users,
+  Clock
+} from "lucide-react";
+import toast from "react-hot-toast";
 
-interface Message {
-  id: string;
-  content: string;
-  senderId: string;
-  receiverId: string;
-  chatId: string;
-  createdAt: string;
-  read: boolean;
-  type?: 'text' | 'image' | 'location';
-  imageUrl?: string;
-  location?: {
-    latitude: number;
-    longitude: number;
-    address?: string;
-  };
-  Sender?: {
-    id: string;
-    username: string;
-    role: string;
-  };
-}
-
-interface Chat {
-  id: string;
-  customerId: string;
-  adminId: string;
-  createdAt: string;
-  updatedAt: string;
-  Customer?: {
-    id: string;
-    username: string;
-    email: string;
-  };
-  Admin?: {
-    id: string;
-    username: string;
-    email: string;
-  };
-  Messages?: Message[];
-  unreadCount?: number;
-}
-
-export default function ChatPage() {
-  const [chats, setChats] = useState<Chat[]>([]);
-  const [selectedChat, setSelectedChat] = useState<Chat | null>(null);
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [newMessage, setNewMessage] = useState("");
-  const [searchTerm, setSearchTerm] = useState("");
-  // Removed unused isTyping state
-  const [typingUsers, setTypingUsers] = useState<string[]>([]);
+export default function AdminChatPage() {
+  const dispatch = useAppDispatch();
+  const { user } = useAppSelector((state) => state.auth);
+  const { 
+    chats, 
+    currentChat, 
+    messages, 
+    status, 
+    error, 
+    unreadCount, 
+    isTyping, 
+    typingUsers 
+  } = useAppSelector((state) => state.chat);
+  
+  const [message, setMessage] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string>("");
-  const [showImageDialog, setShowImageDialog] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isUserLoaded, setIsUserLoaded] = useState(false);
-  const [notifications, setNotifications] = useState<Array<{
-    id: string;
-    message: Message;
-    customerName: string;
-    chatId: string;
-  }>>([]);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { user } = useAppSelector((store) => store.auth);
-  const dispatch = useAppDispatch();
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Notification functions
-  const addNotification = useCallback((message: Message, customerName: string, chatId: string) => {
-    const notificationId = Date.now().toString();
-    setNotifications(prev => [...prev, {
-      id: notificationId,
-      message,
-      customerName,
-      chatId
-    }]);
-
-    // Auto remove notification after 10 seconds
-    setTimeout(() => {
-      removeNotification(notificationId);
-    }, 10000);
-  }, []);
-
-  const removeNotification = (notificationId: string) => {
-    setNotifications(prev => prev.filter(n => n.id !== notificationId));
-  };
-
-  const openChatFromNotification = (chatId: string) => {
-    const chat = chats.find(c => c.id === chatId);
-    if (chat) {
-      selectChat(chat);
-      // Navigate to chat page if not already there
-      if (typeof window !== 'undefined') {
-        window.location.href = '/chat';
-      }
-    }
-  };
-
-  // Debug user object on component mount
-  useEffect(() => {
-    console.log("=== CHAT PAGE USER DEBUG ===");
-    console.log("User from store:", user);
-    console.log("User array length:", user?.length);
-    console.log("First user:", user?.[0]);
-    console.log("User ID:", user?.[0]?.id);
-    console.log("User token:", user?.[0]?.token);
-    console.log("===========================");
-  }, [user]);
-
-  const scrollToBottom = () => {
+  // Scroll to bottom when new messages arrive
+  const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
+  }, []);
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages]);
+  }, [messages, scrollToBottom]);
 
-  // Calculate and update unread count
+  // Fetch chats on mount
   useEffect(() => {
-    const totalUnread = chats.reduce((total, chat) => {
-      return total + (chat.unreadCount || 0);
-    }, 0);
-    dispatch(setUnreadCount(totalUnread));
-  }, [chats, dispatch]);
-
-  const fetchAdminChats = async () => {
-    try {
-      
-      // Debug authentication
-      const token = localStorage.getItem("tokenauth");
-      console.log("🔑 Token from localStorage:", token ? "Present" : "Missing");
-      console.log("👤 User from Redux store:", user);
-      console.log("👤 User array length:", user?.length);
-      console.log("👤 User role:", user?.[0]?.role);
-      console.log("👤 User ID:", user?.[0]?.id);
-      
-      // Check if user is authenticated
-      if (!token || !user || user.length === 0) {
-        console.log("❌ User not authenticated, redirecting to login");
-        window.location.href = "/user/login";
-        return;
-      }
-      
-      // Check if user has admin role
-      if (user[0]?.role !== 'admin') {
-        console.log("❌ User is not admin, redirecting to login");
-        window.location.href = "/user/login";
-        return;
-      }
-      
-      // Try to get admin chats using admin-specific endpoint
-      const response = await APIS.get("/chats/admin/all");
-      
-      if (response.status === 200) {
-        console.log("✅ Admin chats fetched successfully:", response.data);
-        console.log("📊 Response structure:", {
-          hasData: !!response.data.data,
-          dataType: typeof response.data.data,
-          dataLength: response.data.data?.length,
-          fullResponse: response.data
-        });
-        
-        const chatData = response.data.data || [];
-        setChats(chatData);
-        console.log("ℹ️ Admin chat list loaded with", chatData.length, "chats");
-        
-        // Log each chat for debugging
-        chatData.forEach((chat: any, index: number) => {
-          console.log(`Chat ${index + 1}:`, {
-            id: chat.id,
-            adminId: chat.adminId,
-            customerId: chat.customerId,
-            customer: chat.Customer,
-            messages: chat.messages
-          });
-        });
-      } else {
-        console.error("Error fetching admin chat stats:", response.status);
-        setChats([]);
-      }
-    } catch (error) {
-      console.error("Error fetching chat stats:", error);
-      
-      // Handle different types of errors
-      if (error && typeof error === 'object') {
-        const axiosError = error as { 
-          code?: string; 
-          message?: string; 
-          response?: { status?: number, data?: { message?: string } }; 
-        };
-        
-        // Check if it's a request aborted error
-        if (axiosError.code === 'ERR_CANCELED' || axiosError.message === 'Request aborted') {
-          console.warn("⚠️ Request was aborted - this is normal during component unmount");
-          return; // Don't set empty chats if request was aborted
-        }
-        
-        // Check if it's a 401 error (authentication issue)
-        if (axiosError.response?.status === 401) {
-          console.warn("⚠️ Authentication failed - redirecting to login");
-          window.location.href = "/user/login";
-          return;
-        }
-        
-        // Check if it's a 403 error (role access issue)
-        if (axiosError.response?.status === 403) {
-          console.warn("⚠️ Admin chat access denied - insufficient permissions");
-          setChats([]);
-          return;
-        }
-        
-        // Check if it's a network error
-        if (axiosError.code === 'ERR_NETWORK' || axiosError.message?.includes('Network Error')) {
-          console.warn("⚠️ Network error - backend server may be down");
-        }
-        
-        // Show user-friendly error message
-        const errorMessage = axiosError.response?.data?.message || axiosError.message || "Failed to load chats";
-        console.error("Chat loading error:", errorMessage);
-      }
-      
-      setChats([]);
+    if (user?.[0]?.id && user?.[0]?.role === 'admin') {
+      dispatch(fetchAllChats());
     }
-  };
+  }, [dispatch, user?.[0]?.id, user?.[0]?.role]);
 
-  const updateChatList = useCallback(async () => {
-    await fetchAdminChats();
-  }, []);
-
+  // WebSocket event listeners
   useEffect(() => {
-    // Mark user as loaded when user data is available
-    if (user && user.length > 0) {
-      setIsUserLoaded(true);
-    }
-  }, [user]);
+    if (!socket) return;
 
-  useEffect(() => {
-    // Only fetch admin chats if user is properly loaded
-    if (isUserLoaded && user && user.length > 0 && user[0]?.role === 'admin') {
-      fetchAdminChats();
-    } else if (isUserLoaded && user && user.length > 0 && user[0]?.role !== 'admin') {
-      console.log("❌ User is not admin, redirecting to login");
-      window.location.href = "/user/login";
-    }
-
-    // Listen for new messages
-    socket.on("receiveMessage", (message: Message) => {
-      if (selectedChat && message.chatId === selectedChat.id) {
-        setMessages(prev => [...prev, message]);
-      } else {
-        // Show notification for new message from other chats
-        const chat = chats.find(c => c.id === message.chatId);
-        if (chat && message.senderId !== user?.[0]?.id) {
-          addNotification(
-            message, 
-            chat.Customer?.username || "Customer", 
-            message.chatId
-          );
-        }
-      }
-      // Update chat list to show new message
-      updateChatList();
-    });
-
-    // Listen for typing indicators
-    socket.on("typing", ({ chatId, userId }: { chatId: string; userId: string }) => {
-      if (selectedChat && chatId === selectedChat.id) {
-        setTypingUsers(prev => [...prev.filter(id => id !== userId), userId]);
-      }
-    });
-
-    socket.on("stopTyping", ({ chatId, userId }: { chatId: string; userId: string }) => {
-      if (selectedChat && chatId === selectedChat.id) {
-        setTypingUsers(prev => prev.filter(id => id !== userId));
-      }
-    });
-
-    // Listen for new message notifications
-    socket.on("newMessageNotification", ({ chatId, message, sender }: { chatId: string; message: Message; sender: unknown }) => {
-      console.log("New message notification:", { chatId, sender });
+    const handleNewMessage = (message: Message) => {
+      dispatch(addMessage(message));
+      dispatch(updateChatLastMessage({ chatId: message.chatId, message }));
       
-      // Show notification for new message
-      const chat = chats.find(c => c.id === chatId);
-      if (chat && message.senderId !== user?.[0]?.id && (!selectedChat || selectedChat.id !== chatId)) {
-        addNotification(
-          message, 
-          chat.Customer?.username || "Customer", 
-          chatId
-        );
+      // Show notification
+      toast.success(`New message from ${message.Sender?.username || 'Customer'}`, {
+        duration: 3000,
+      });
+    };
+
+    const handleTyping = ({ chatId, userId }: { chatId: string; userId: string }) => {
+      if (currentChat?.id === chatId && userId !== user?.[0]?.id) {
+        dispatch(setTyping({ isTyping: true, userId }));
       }
-      
-      updateChatList();
-    });
+    };
+
+    const handleStopTyping = ({ chatId, userId }: { chatId: string; userId: string }) => {
+      if (currentChat?.id === chatId && userId !== user?.[0]?.id) {
+        dispatch(setTyping({ isTyping: false, userId }));
+      }
+    };
+
+    socket.on("receiveMessage", handleNewMessage);
+    socket.on("typing", handleTyping);
+    socket.on("stopTyping", handleStopTyping);
 
     return () => {
-      socket.off("receiveMessage");
-      socket.off("typing");
-      socket.off("stopTyping");
-      socket.off("newMessageNotification");
+      socket.off("receiveMessage", handleNewMessage);
+      socket.off("typing", handleTyping);
+      socket.off("stopTyping", handleStopTyping);
     };
-  }, [selectedChat, addNotification, chats, user, updateChatList]);
+  }, [dispatch, currentChat?.id, user?.[0]?.id]);
 
-
-  // Removed setMockChats function - no longer using mock data
-
-  const selectChat = async (chat: Chat) => {
-    setSelectedChat(chat);
-    
-    try {
-      
-      const response = await APIS.get(`/chats/admin/${chat.id}/messages`);
-      
-      if (response.status === 200) {
-        const chatMessages = response.data.data || [];
-        
-        // Debug messages
-        console.log("Chat messages loaded:", chatMessages);
-        chatMessages.forEach((msg: Message, index: number) => {
-          console.log(`Message ${index}:`, { 
-            type: msg.type, 
-            imageUrl: msg.imageUrl, 
-            content: msg.content,
-            isImage: isImageMessage(msg)
-          });
-        });
-        
-        setMessages(chatMessages);
-        
-        // Join chat room
-        socket.emit("joinChat", chat.id);
-        
-        // Mark messages as read
-        socket.emit("markAsRead", { chatId: chat.id });
-        
-        // Update chat unread count to 0
-        setChats(prev => prev.map(c => 
-          c.id === chat.id ? { ...c, unreadCount: 0 } : c
-        ));
-      } else {
-        console.error("Error fetching messages:", response.status);
-        // Set empty messages if API fails
-        setMessages([]);
-        setChats(prev => prev.map(c => 
-          c.id === chat.id ? { ...c, unreadCount: 0 } : c
-        ));
-      }
-    } catch (error) {
-      console.error("Error fetching messages:", error);
-      // Set empty messages if network error
-      setMessages([]);
-      setChats(prev => prev.map(c => 
-        c.id === chat.id ? { ...c, unreadCount: 0 } : c
-      ));
-    }
+  const handleSelectChat = async (chat: Chat) => {
+    dispatch(setCurrentChat(chat));
+    dispatch(fetchChatMessages({ chatId: chat.id }));
+    dispatch(markMessagesAsRead(chat.id));
   };
 
-  const sendMessage = async () => {
-    if (!newMessage.trim() || !selectedChat) return;
+  const handleSendMessage = async () => {
+    if (!message.trim() && !selectedImage) return;
+    if (!currentChat) return;
 
     try {
-      // Removed unused token variable
+      const result = await dispatch(sendMessage({
+        chatId: currentChat.id,
+        content: message,
+        messageType: selectedImage ? 'image' : 'text',
+        image: selectedImage || undefined
+      }));
 
-      const messageData = {
-        chatId: selectedChat.id,
-        content: newMessage.trim(),
-        // Remove senderId - backend will get it from req.user?.[0]?.id
-      };
-
-      console.log("Sending message data:", messageData);
-      console.log("User object:", user);
-      console.log("User array length:", user?.length);
-      console.log("First user:", user?.[0]);
-      console.log("User ID:", user?.[0]?.id);
-      console.log("Selected chat:", selectedChat);
-
-      
-      const response = await APIS.post("/chats/admin/send-message", messageData);
-
-      if (response.status === 200 || response.status === 201) {
-        const newMsg = response.data.data;
-        
-        // Add message to local state
-        setMessages(prev => [...prev, newMsg]);
-        
-        // Update chat's last message
-        setChats(prev => prev.map(chat => 
-          chat.id === selectedChat.id 
-            ? { ...chat, Messages: [...(chat.Messages || []), newMsg], updatedAt: new Date().toISOString() }
-            : chat
-        ));
+      if (sendMessage.fulfilled.match(result)) {
+        setMessage("");
+        setSelectedImage(null);
+        setImagePreview("");
 
         // Emit socket event for real-time updates
         socket.emit("sendMessage", {
-          chatId: selectedChat.id,
-          content: newMessage.trim(),
+          chatId: currentChat.id,
+          content: message,
+          messageType: selectedImage ? 'image' : 'text'
         });
       } else {
-        console.error("Error sending message:", response.status);
-        alert("Failed to send message. Please try again.");
+        toast.error("Failed to send message");
       }
     } catch (error) {
       console.error("Error sending message:", error);
-      alert("Failed to send message. Please try again.");
+      toast.error("Failed to send message");
     }
-    
-    setNewMessage("");
   };
 
-  const handleTyping = () => {
-    if (!selectedChat) return;
-    
-                  socket.emit("typing", {
-        chatId: selectedChat.id,
-        userId: user?.[0]?.id // This is fine for WebSocket as it's not the API
-      });
-        
-        // Stop typing after 2 seconds
-        setTimeout(() => {
-          socket.emit("stopTyping", { 
-            chatId: selectedChat.id, 
-            userId: user?.[0]?.id 
-          });
-        }, 2000);
-  };
-
-  // Handle image selection
-  const handleImageSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
     if (file && file.type.startsWith('image/')) {
       setSelectedImage(file);
       const reader = new FileReader();
-      reader.onload = (e) => {
-        setImagePreview(e.target?.result as string);
-        setShowImageDialog(true);
-      };
+      reader.onload = (e) => setImagePreview(e.target?.result as string);
       reader.readAsDataURL(file);
-    }
-  };
-
-  // Handle location sharing
-  const handleLocationShare = () => {
-    if (navigator.geolocation) {
-      setIsLoading(true);
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const { latitude, longitude } = position.coords;
-          sendLocationMessage(latitude, longitude);
-          setIsLoading(false);
-        },
-        (error) => {
-          console.error('Error getting location:', error);
-          setIsLoading(false);
-        }
-      );
     } else {
-      alert('Geolocation is not supported by this browser.');
+      toast.error("Please select an image file");
     }
   };
 
-  // Send location message
-  const sendLocationMessage = async (latitude: number, longitude: number) => {
-    if (!selectedChat) return;
-
-    try {
-
-      const response = await APIS.post("/chats/admin/send-message", {
-        chatId: selectedChat.id,
-        content: `📍 Location shared`,
-        type: 'location',
-        location: { latitude, longitude },
+  const handleTyping = () => {
+    if (currentChat) {
+                  socket.emit("typing", {
+        chatId: currentChat.id, 
+        userId: user?.[0]?.id 
       });
-
-      if (response.status === 200 || response.status === 201) {
-        const newMsg = response.data.data;
-        setMessages(prev => [...prev, newMsg]);
-        setChats(prev => prev.map(chat => 
-          chat.id === selectedChat.id 
-            ? { ...chat, Messages: [...(chat.Messages || []), newMsg], updatedAt: new Date().toISOString() }
-            : chat
-        ));
-      }
-    } catch (error) {
-      console.error("Error sending location:", error);
-    }
-  };
-
-  // Send image message
-  const sendImageMessage = async () => {
-    if (!selectedImage || !selectedChat) return;
-
-    try {
-      setIsLoading(true);
-
-      console.log("Sending image - User object:", user);
-      console.log("Sending image - User ID:", user?.[0]?.id);
-      console.log("Sending image - Selected chat:", selectedChat);
-      console.log("Sending image - Selected image:", selectedImage);
-
-      // Create FormData for image upload
-      const formData = new FormData();
-      formData.append('image', selectedImage);
-      formData.append('chatId', selectedChat.id);
-      formData.append('type', 'image');
-
-      console.log("FormData contents:");
-      for (const [key, value] of formData.entries()) {
-        console.log(key, value);
-      }
-
-      const response = await APIS.post("/chats/admin/send-message", formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
-
-      if (response.status === 200 || response.status === 201) {
-        const newMsg = response.data.data;
-        console.log("Image sent successfully:", newMsg);
-        console.log("New message type:", newMsg.type);
-        console.log("New message imageUrl:", newMsg.imageUrl);
-        setMessages(prev => [...prev, newMsg]);
-        setChats(prev => prev.map(chat => 
-          chat.id === selectedChat.id 
-            ? { ...chat, Messages: [...(chat.Messages || []), newMsg], updatedAt: new Date().toISOString() }
-            : chat
-        ));
         
-        // Clear image selection
-        setSelectedImage(null);
-        setImagePreview("");
-        setShowImageDialog(false);
+        setTimeout(() => {
+          socket.emit("stopTyping", { 
+          chatId: currentChat.id, 
+            userId: user?.[0]?.id 
+          });
+        }, 2000);
+    }
+  };
+
+  const formatTime = (timestamp: string) => {
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
+    
+    if (diffInHours < 1) {
+      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    } else if (diffInHours < 24) {
+      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
       } else {
-        console.error("Error sending image:", response.status);
-      }
-    } catch (error) {
-      console.error("Error sending image:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Clear image selection
-  const clearImageSelection = () => {
-    setSelectedImage(null);
-    setImagePreview("");
-    setShowImageDialog(false);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
-  };
-
-  const filteredChats = chats.filter(chat => 
-    chat.Customer?.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    chat.Customer?.email?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  const formatTime = (dateString: string) => {
-    return new Date(dateString).toLocaleTimeString([], { 
-      hour: '2-digit', 
-      minute: '2-digit' 
-    });
-  };
-
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    const today = new Date();
-    const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1);
-
-    if (date.toDateString() === today.toDateString()) {
-      return "Today";
-    } else if (date.toDateString() === yesterday.toDateString()) {
-      return "Yesterday";
-    } else {
       return date.toLocaleDateString();
     }
   };
 
-  // Helper function to get proper image URL
-  const getImageUrl = (imageUrl: string) => {
-    if (!imageUrl) return '';
-    
-    // If it's already a full URL (including Cloudinary), return as is
-    if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
-      return imageUrl;
-    }
-    
-    // If it's a relative path, convert to full URL
-    if (imageUrl.startsWith('/')) {
-      return `http://localhost:5001${imageUrl}`;
-    }
-    
-    // If it's just a filename, assume it's in uploads folder
-    return `http://localhost:5001/uploads/${imageUrl}`;
-  };
+  const filteredChats = chats.filter(chat => 
+    chat.Customer?.username?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    chat.lastMessage?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
-  // Helper function to get a fallback image URL
-  const getFallbackImageUrl = () => {
-    return '/placeholder-image.svg';
-  };
-
-  // Helper function to check if message is an image message
-  const isImageMessage = (message: Message) => {
-    // Check if type is 'image', content contains image indicator, or has imageUrl
-    return message.type === 'image' || 
-           (message.content && message.content.includes('📷 Image:')) ||
-           (message.imageUrl && message.imageUrl.length > 0);
-  };
-
-  // Helper function to extract image filename from content
-  const extractImageFilename = (content: string) => {
-    const match = content.match(/📷 Image: (.+)/);
-    return match ? match[1].trim() : null;
-  };
-
-  // Helper function to get sender name for a message
-  const getSenderName = (message: Message) => {
-    // If message has Sender info, use it
-    if (message.Sender?.username) {
-      return message.Sender.username;
-    }
-    
-    // If it's the current admin user
-    if (message.senderId === user?.[0]?.id) {
-      return user?.[0]?.username || "Admin";
-    }
-    
-    // If it's the customer in the selected chat
-    if (message.senderId === selectedChat?.Customer?.id) {
-      return selectedChat.Customer?.username || "Customer";
-    }
-    
-    // If it's the admin in the selected chat
-    if (message.senderId === selectedChat?.Admin?.id) {
-      return selectedChat.Admin?.username || "Admin";
-    }
-    
-    return "Unknown";
-  };
-
-  // Helper function to get sender avatar fallback
-  const getSenderAvatarFallback = (message: Message) => {
-    const senderName = getSenderName(message);
-    return senderName.charAt(0).toUpperCase();
-  };
-
-  // Show loading state while user data is being loaded
-  if (!isUserLoaded) {
+  if (user?.[0]?.role !== 'admin') {
     return (
-      <AdminLayout>
-        <div className="h-[calc(100vh-100px)] flex items-center justify-center bg-gradient-to-br from-slate-50 to-blue-50 dark:from-slate-900 dark:to-slate-800">
+      <div className="flex items-center justify-center h-screen">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p className="text-slate-600 dark:text-slate-400">Loading chat...</p>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">Access Denied</h1>
+          <p className="text-gray-600">You need admin privileges to access this page.</p>
           </div>
         </div>
-      </AdminLayout>
     );
   }
 
-  return (
-    <AdminLayout>
-      <div className="h-[calc(100vh-100px)] flex bg-gradient-to-br from-slate-50 to-blue-50 dark:from-slate-900 dark:to-slate-800">
-        {/* Chat List */}
-        <div className="w-80 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border-r border-slate-200/50 dark:border-slate-700/50">
-          <div className="h-full flex flex-col">
+    return (
+    <div className="h-screen bg-gray-100 flex">
+      {/* Sidebar */}
+      <div className="w-1/3 bg-white border-r border-gray-200 flex flex-col">
             {/* Header */}
-            <div className="p-6 border-b border-slate-200/50 dark:border-slate-700/50 bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="p-2 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl">
-                  <MessageCircle className="h-5 w-5 text-white" />
-                </div>
-                <div>
-                  <h2 className="text-lg font-semibold text-slate-900 dark:text-white">
-                    Customer Chats
-                  </h2>
-                  <p className="text-sm text-slate-500 dark:text-slate-400">
-                    {filteredChats.length} active conversations
-                  </p>
-                </div>
+        <div className="p-4 border-b border-gray-200">
+          <h1 className="text-xl font-semibold text-gray-900">Customer Support</h1>
+          <p className="text-sm text-gray-600">Manage customer conversations</p>
               </div>
               
               {/* Search */}
+        <div className="p-4 border-b border-gray-200">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
-                <Input
-                  placeholder="Search customers..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 bg-white/70 dark:bg-slate-700/70 border-slate-200/50 dark:border-slate-600/50 focus:ring-2 focus:ring-blue-500/20"
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search conversations..."
+              className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
             </div>
             
             {/* Chat List */}
             <div className="flex-1 overflow-y-auto">
-              {filteredChats.length === 0 ? (
-                <div className="p-8 text-center">
-                  <div className="p-4 bg-slate-100/50 dark:bg-slate-700/50 rounded-2xl inline-block mb-4">
-                    <MessageCircle className="h-8 w-8 text-slate-400" />
+          {status === 'loading' ? (
+            <div className="flex justify-center p-4">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
                   </div>
-                  <h3 className="text-slate-600 dark:text-slate-300 font-medium mb-2">No chats available</h3>
-                  <p className="text-sm text-slate-500 dark:text-slate-400">
-                    Chat functionality may not be available for admin role
-                  </p>
-                  <p className="text-xs text-slate-400 dark:text-slate-500 mt-2">
-                    The chat system is currently designed for customer support
-                  </p>
+          ) : filteredChats.length === 0 ? (
+            <div className="text-center p-4 text-gray-500">
+              <MessageCircle className="w-12 h-12 mx-auto mb-2 opacity-50" />
+              <p>No conversations yet</p>
                 </div>
               ) : (
-                <div className="p-2">
-                  {filteredChats.map((chat) => (
+            filteredChats.map((chat) => (
                     <div
                       key={chat.id}
-                      onClick={() => selectChat(chat)}
-                      className={`p-4 rounded-2xl cursor-pointer transition-all duration-200 mb-2 ${
-                        selectedChat?.id === chat.id 
-                          ? "bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-200/50 dark:border-blue-700/50 shadow-lg" 
-                          : "hover:bg-white/50 dark:hover:bg-slate-700/50 hover:shadow-md"
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="relative">
-                          <Avatar className="h-12 w-12 ring-2 ring-white dark:ring-slate-800 shadow-lg">
-                            <AvatarImage src="" />
-                            <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white font-semibold">
-                              {chat.Customer?.username?.charAt(0).toUpperCase() || "C"}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 border-2 border-white dark:border-slate-800 rounded-full"></div>
+                onClick={() => handleSelectChat(chat)}
+                className={`p-4 border-b border-gray-100 cursor-pointer hover:bg-gray-50 transition-colors ${
+                  currentChat?.id === chat.id ? 'bg-blue-50 border-blue-200' : ''
+                }`}
+              >
+                <div className="flex items-center space-x-3">
+                  <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white font-semibold">
+                    {chat.Customer?.username?.charAt(0).toUpperCase() || 'C'}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between mb-1">
-                            <p className="font-semibold text-slate-900 dark:text-white truncate">
-                              {chat.Customer?.username || "Customer"}
-                            </p>
-                            {chat.unreadCount && chat.unreadCount > 0 && (
-                              <Badge className="bg-gradient-to-r from-red-500 to-pink-500 text-white text-xs px-2 py-1 rounded-full">
-                                {chat.unreadCount}
-                              </Badge>
-                            )}
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-sm font-semibold text-gray-900 truncate">
+                        {chat.Customer?.username || 'Customer'}
+                      </h3>
+                      <span className="text-xs text-gray-500">
+                        {chat.lastMessageAt ? formatTime(chat.lastMessageAt) : ''}
+                      </span>
                           </div>
-                          <p className="text-sm text-slate-600 dark:text-slate-300 truncate mb-1">
-                            {chat.Messages && chat.Messages.length > 0
-                              ? chat.Messages[chat.Messages.length - 1].content
-                              : "No messages yet"}
-                          </p>
-                          <p className="text-xs text-slate-500 dark:text-slate-400">
-                            {chat.updatedAt ? formatDate(chat.updatedAt) : ""}
-                          </p>
+                    <p className="text-sm text-gray-600 truncate">
+                      {chat.lastMessage || 'No messages yet'}
+                    </p>
+                    {chat.unreadCount > 0 && (
+                      <div className="flex items-center justify-between mt-1">
+                        <span className="text-xs text-blue-600 font-medium">
+                          {chat.unreadCount} unread
+                        </span>
                         </div>
+                    )}
                       </div>
                     </div>
-                  ))}
                 </div>
+            ))
               )}
-            </div>
           </div>
         </div>
 
-        {/* Chat Messages */}
-        <div className="flex-1 flex flex-col bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm">
-          {selectedChat ? (
+      {/* Chat Area */}
+      <div className="flex-1 flex flex-col">
+        {currentChat ? (
             <>
               {/* Chat Header */}
-              <div className="p-6 border-b border-slate-200/50 dark:border-slate-700/50 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm">
+            <div className="bg-white border-b border-gray-200 p-4">
                 <div className="flex items-center justify-between">
-                  {/* Customer Info */}
-                  <div className="flex items-center gap-4">
-                    <div className="relative">
-                      <Avatar className="h-12 w-12 ring-2 ring-white dark:ring-slate-800 shadow-lg">
-                        <AvatarImage src="" />
-                        <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white font-semibold">
-                          {selectedChat.Customer?.username?.charAt(0).toUpperCase() || "C"}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 border-2 border-white dark:border-slate-800 rounded-full"></div>
+                <div className="flex items-center space-x-3">
+                  <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white font-semibold">
+                    {currentChat.Customer?.username?.charAt(0).toUpperCase() || 'C'}
                     </div>
                     <div>
-                      <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
-                        {selectedChat.Customer?.username || "Customer"}
-                      </h3>
-                      <p className="text-sm text-slate-500 dark:text-slate-400">
-                        {selectedChat.Customer?.email}
+                    <h2 className="text-lg font-semibold text-gray-900">
+                      {currentChat.Customer?.username || 'Customer'}
+                    </h2>
+                    <p className="text-sm text-gray-600">
+                      {currentChat.Customer?.email || 'customer@example.com'}
                       </p>
                     </div>
                   </div>
-                  
-                  {/* Admin Info */}
-                  <div className="flex items-center gap-4">
-                    <div className="text-right">
-                      <p className="text-sm text-slate-500 dark:text-slate-400">Support Agent</p>
-                      <p className="text-sm font-medium text-slate-900 dark:text-white">
-                        {user?.[0]?.username || selectedChat.Admin?.username || "Admin"}
-                      </p>
-                    </div>
-                    <div className="relative">
-                      <Avatar className="h-10 w-10 ring-2 ring-white dark:ring-slate-800 shadow-lg">
-                        <AvatarImage src="" />
-                        <AvatarFallback className="bg-gradient-to-br from-green-500 to-emerald-600 text-white font-semibold text-sm">
-                          {(user?.[0]?.username || selectedChat.Admin?.username || "A").charAt(0).toUpperCase()}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-500 border-2 border-white dark:border-slate-800 rounded-full"></div>
-                    </div>
+                <div className="flex items-center space-x-2">
+                  <button className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
+                    <Phone className="w-5 h-5" />
+                  </button>
+                  <button className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
+                    <Video className="w-5 h-5" />
+                  </button>
+                  <button className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
+                    <MoreVertical className="w-5 h-5" />
+                  </button>
                   </div>
                 </div>
               </div>
 
               {/* Messages */}
-              <div className="flex-1 overflow-y-auto p-6 space-y-6">
-                {messages.map((message) => (
+            <div className="flex-1 overflow-y-auto p-4 bg-gray-50 space-y-3">
+              {status === 'loading' ? (
+                <div className="flex justify-center">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                </div>
+              ) : messages.length === 0 ? (
+                <div className="text-center text-gray-400 py-8">
+                  <MessageCircle className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                  <p>No messages yet</p>
+                  <p className="text-xs">Start the conversation!</p>
+                  </div>
+                ) : (
+                messages.map((msg) => (
                   <div
-                    key={message.id}
-                    className={`flex ${message.senderId === user?.[0]?.id ? "justify-end" : "justify-start"}`}
+                    key={msg.id}
+                    className={`flex ${msg.senderId === user?.[0]?.id ? "justify-end" : "justify-start"}`}
                   >
-                    <div className="flex items-end gap-3 max-w-2xl">
-                      {message.senderId !== user?.[0]?.id && (
-                        <Avatar className="h-8 w-8 flex-shrink-0">
-                          <AvatarImage src="" />
-                          <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white text-xs">
-                            {getSenderAvatarFallback(message)}
-                          </AvatarFallback>
-                        </Avatar>
+                    <div
+                      className={`max-w-[75%] px-4 py-3 rounded-2xl ${
+                        msg.senderId === user?.[0]?.id
+                          ? "bg-blue-600 text-white"
+                          : "bg-white border border-gray-200 text-gray-800"
+                      }`}
+                    >
+                      {msg.imageUrl && (
+                        <div className="mb-2">
+                          <img 
+                            src={msg.imageUrl} 
+                            alt="Message attachment" 
+                            className="max-w-full h-auto rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
+                            onClick={() => window.open(msg.imageUrl, '_blank')}
+                          />
+                            </div>
                       )}
-                      
-                      <div className="flex flex-col">
-                        {/* Sender Name */}
-                        {message.senderId !== user?.[0]?.id && (
-                          <p className="text-xs text-slate-500 dark:text-slate-400 mb-1 ml-1">
-                            {getSenderName(message)}
-                          </p>
-                        )}
-                        
-                        <div
-                          className={`px-6 py-3 rounded-2xl shadow-lg max-w-md ${
-                            message.senderId === user?.[0]?.id
-                              ? "bg-gradient-to-br from-blue-500 to-purple-600 text-white"
-                              : "bg-white dark:bg-slate-700 text-slate-900 dark:text-white border border-slate-200/50 dark:border-slate-600/50"
-                          }`}
-                        >
-                          {/* Message Content based on type */}
-                          {isImageMessage(message) ? (
-                            <div className="space-y-3">
-                              <NextImage 
-                                src={getImageUrl(message.imageUrl || extractImageFilename(message.content) || '')} 
-                                alt="Shared image by customer" 
-                                width={400}
-                                height={300}
-                                className="rounded-xl max-w-full h-auto cursor-pointer hover:opacity-90 transition-all duration-200 shadow-md"
-                                onClick={() => window.open(getImageUrl(message.imageUrl || extractImageFilename(message.content) || ''), '_blank')}
-                                onError={(e) => {
-                                  console.warn("Image failed to load, showing fallback:", message.imageUrl || extractImageFilename(message.content));
-                                  e.currentTarget.src = getFallbackImageUrl();
-                                  e.currentTarget.onerror = null; // Prevent infinite loop
-                                }}
-                              />
-                              {message.content && message.content.trim() && !message.content.includes('📷 Image:') && (
-                                <p className="text-sm leading-relaxed">{message.content}</p>
-                              )}
-                            </div>
-                          ) : message.type === 'location' && message.location ? (
-                            <div className="space-y-3">
-                              <div className="bg-slate-50/50 dark:bg-slate-600/50 rounded-xl p-4 border border-slate-200/50 dark:border-slate-500/50">
-                                <div className="flex items-center gap-2 mb-3">
-                                  <MapPin className="h-4 w-4 text-blue-500" />
-                                  <span className="text-sm font-semibold">📍 Location Shared</span>
-                                </div>
-                                <p className="text-xs text-slate-600 dark:text-slate-300 mb-3 font-mono">
-                                  {message.location.latitude.toFixed(6)}, {message.location.longitude.toFixed(6)}
-                                </p>
-                                <a
-                                  href={`https://maps.google.com/?q=${message.location.latitude},${message.location.longitude}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="inline-flex items-center gap-1 text-xs text-blue-500 hover:text-blue-600 font-medium transition-colors"
-                                >
-                                  <MapPin className="h-3 w-3" />
-                                  View on Google Maps
-                                </a>
-                              </div>
-                              {message.content && (
-                                <p className="text-sm leading-relaxed">{message.content}</p>
-                              )}
-                            </div>
-                          ) : (
-                            <p className="text-sm leading-relaxed">{message.content}</p>
+                      <div className="break-words">{msg.content}</div>
+                      <div className="mt-1 flex items-center justify-between text-[10px]">
+                        <span className="opacity-75">{formatTime(msg.createdAt)}</span>
+                        <div className="flex items-center space-x-1">
+                          {msg.senderId === user?.[0]?.id && (
+                            <>
+                              <Check className="w-3 h-3" />
+                              {msg.isRead && <CheckCheck className="w-3 h-3 text-blue-400" />}
+                            </>
                           )}
-                          
-                          {/* Message Footer */}
-                          <div className="flex items-center justify-between mt-3 pt-2 border-t border-white/20 dark:border-slate-600/50">
-                            <p className="text-xs opacity-70">
-                              {formatTime(message.createdAt)}
-                            </p>
-                            {message.senderId === user?.[0]?.id && (
-                              <div className="flex items-center gap-1">
-                                {message.read ? (
-                                  <CheckCheck className="h-3 w-3 text-blue-200" />
-                                ) : (
-                                  <Check className="h-3 w-3 opacity-50" />
-                                )}
-                              </div>
-                            )}
-                          </div>
                         </div>
                       </div>
                     </div>
                   </div>
-                ))}
+                ))
+                )}
                 
                 {/* Typing indicator */}
-                {typingUsers.length > 0 && (
+              {isTyping && typingUsers.length > 0 && (
                   <div className="flex justify-start">
-                    <div className="flex items-end gap-3">
-                      <Avatar className="h-8 w-8 flex-shrink-0">
-                        <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white text-xs">
-                          {selectedChat.Customer?.username?.charAt(0).toUpperCase() || "C"}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="bg-white dark:bg-slate-700 px-6 py-3 rounded-2xl shadow-lg border border-slate-200/50 dark:border-slate-600/50">
-                        <div className="flex items-center gap-3">
+                  <div className="max-w-[75%] px-4 py-2 rounded-lg bg-white border border-gray-200 text-gray-600 text-sm">
+                    <div className="flex items-center space-x-1">
                           <div className="flex space-x-1">
-                            <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce"></div>
-                            <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
-                            <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
+                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
+                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
                           </div>
-                          <p className="text-sm text-slate-600 dark:text-slate-300">
-                            {typingUsers.length === 1 ? "Customer is typing..." : "Someone is typing..."}
-                          </p>
-                        </div>
+                      <span className="ml-2">Customer is typing...</span>
                       </div>
                     </div>
                   </div>
@@ -953,57 +388,56 @@ export default function ChatPage() {
                 <div ref={messagesEndRef} />
               </div>
 
-              {/* Message Input */}
-              <div className="p-6 border-t border-slate-200/50 dark:border-slate-700/50 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm">
-                <div className="flex gap-3">
-                  {/* Attachment and Location Buttons */}
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => fileInputRef.current?.click()}
-                      disabled={isLoading}
-                      className="h-12 w-12 p-0 rounded-xl border-slate-200/50 dark:border-slate-600/50 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all duration-200"
-                      title="Attach image"
-                    >
-                      <Image className="h-5 w-5 text-slate-600 dark:text-slate-300" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleLocationShare}
-                      disabled={isLoading}
-                      className="h-12 w-12 p-0 rounded-xl border-slate-200/50 dark:border-slate-600/50 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all duration-200"
-                      title="Share location"
-                    >
-                      <MapPin className="h-5 w-5 text-slate-600 dark:text-slate-300" />
-                    </Button>
-                  </div>
-                  
-                  <div className="flex-1 relative">
-                    <Input
-                      placeholder="Type a message..."
-                      value={newMessage}
-                      onChange={(e) => setNewMessage(e.target.value)}
-                      onKeyPress={(e) => {
-                        if (e.key === "Enter") {
-                          sendMessage();
-                        } else {
-                          handleTyping();
-                        }
-                      }}
-                      className="h-12 px-4 rounded-xl border-slate-200/50 dark:border-slate-600/50 bg-white/70 dark:bg-slate-700/70 focus:ring-2 focus:ring-blue-500/20 transition-all duration-200"
-                      disabled={isLoading}
-                    />
-                  </div>
-                  
-                  <Button 
-                    onClick={sendMessage} 
-                    disabled={!newMessage.trim() && !selectedImage}
-                    className="h-12 w-12 p-0 rounded-xl bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl"
+            {/* Image Preview */}
+            {imagePreview && (
+              <div className="p-4 bg-gray-50 border-t border-gray-200">
+                <div className="relative max-w-[200px]">
+                  <img 
+                    src={imagePreview} 
+                    alt="Preview" 
+                    className="rounded-lg max-w-full h-auto"
+                  />
+                  <button
+                    onClick={() => {
+                      setSelectedImage(null);
+                      setImagePreview("");
+                    }}
+                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-red-600"
                   >
-                    <Send className="h-5 w-5 text-white" />
-                  </Button>
+                    <X className="w-3 h-3" />
+                  </button>
+                  </div>
+              </div>
+            )}
+
+            {/* Input */}
+            <div className="p-4 border-t border-gray-100 bg-white">
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="p-3 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-colors"
+                >
+                  <Paperclip className="w-5 h-5" />
+                </button>
+                
+                <input
+                  type="text"
+                  value={message}
+                  onChange={(e) => {
+                    setMessage(e.target.value);
+                          handleTyping();
+                  }}
+                  onKeyDown={(e) => e.key === "Enter" && handleSendMessage()}
+                  className="flex-1 px-4 py-3 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50"
+                  placeholder="Type your message..."
+                />
+                
+                <button
+                  onClick={handleSendMessage}
+                  className="p-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all duration-200 transform hover:scale-105 shadow-sm"
+                >
+                  <Send className="w-4 h-4" />
+                </button>
                 </div>
                 
                 {/* Hidden file input */}
@@ -1014,122 +448,18 @@ export default function ChatPage() {
                   onChange={handleImageSelect}
                   className="hidden"
                 />
-                
-                {/* Loading indicator */}
-                {isLoading && (
-                  <div className="flex items-center gap-3 mt-4 p-3 bg-slate-50/50 dark:bg-slate-700/50 rounded-xl">
-                    <div className="animate-spin rounded-full h-5 w-5 border-2 border-blue-500 border-t-transparent"></div>
-                    <span className="text-sm text-slate-600 dark:text-slate-300 font-medium">
-                      Sending message...
-                    </span>
-                  </div>
-                )}
               </div>
             </>
           ) : (
-            <div className="flex-1 flex items-center justify-center p-8">
-              <div className="text-center max-w-md">
-                <div className="p-6 bg-gradient-to-br from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-3xl inline-block mb-6">
-                  <MessageCircle className="h-16 w-16 text-blue-500 mx-auto" />
-                </div>
-                <h3 className="text-2xl font-bold text-slate-900 dark:text-white mb-3">
-                  Welcome to Chat
-                </h3>
-                <p className="text-slate-600 dark:text-slate-300 text-lg leading-relaxed">
-                  Select a customer from the list to start a conversation and provide amazing support
-                </p>
-                <div className="mt-6 flex items-center justify-center gap-4 text-sm text-slate-500 dark:text-slate-400">
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                    <span>Real-time messaging</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                    <span>File sharing</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-                    <span>Location sharing</span>
-                  </div>
-                </div>
+          <div className="flex-1 flex items-center justify-center bg-gray-50">
+            <div className="text-center">
+              <MessageCircle className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+              <h2 className="text-xl font-semibold text-gray-900 mb-2">Select a conversation</h2>
+              <p className="text-gray-600">Choose a chat from the sidebar to start messaging</p>
               </div>
             </div>
           )}
         </div>
       </div>
-      
-      {/* Image Preview Dialog */}
-      <Dialog open={showImageDialog} onOpenChange={setShowImageDialog}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Send Image</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            {imagePreview && (
-              <div className="relative">
-                <NextImage 
-                  src={imagePreview} 
-                  alt="Image preview for sending" 
-                  width={400}
-                  height={256}
-                  className="w-full h-64 object-cover rounded-lg"
-                  onError={(e) => {
-                    console.warn("Preview image failed to load");
-                    e.currentTarget.src = getFallbackImageUrl();
-                    e.currentTarget.onerror = null; // Prevent infinite loop
-                  }}
-                />
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  className="absolute top-2 right-2 h-8 w-8 p-0"
-                  onClick={clearImageSelection}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-            )}
-            <div className="flex gap-2">
-              <Button 
-                onClick={sendImageMessage} 
-                disabled={!selectedImage || isLoading}
-                className="flex-1"
-              >
-                {isLoading ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                    Sending...
-                  </>
-                ) : (
-                  <>
-                    <Send className="h-4 w-4 mr-2" />
-                    Send Image
-                  </>
-                )}
-              </Button>
-              <Button 
-                variant="outline" 
-                onClick={clearImageSelection}
-                disabled={isLoading}
-              >
-                Cancel
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Notification Toasts */}
-      {notifications.map((notification, index) => (
-        <div key={notification.id} style={{ top: `${4 + (index * 5)}rem` }}>
-          <NotificationToast
-            message={notification.message}
-            customerName={notification.customerName}
-            onClose={() => removeNotification(notification.id)}
-            onOpenChat={() => openChatFromNotification(notification.chatId)}
-          />
-        </div>
-      ))}
-    </AdminLayout>
   );
-} 
+}

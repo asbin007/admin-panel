@@ -39,7 +39,7 @@ import { fetchOrders } from "@/store/orderSlice";
 import { fetchProducts } from "@/store/productSlice";
 import { fetchUsers } from "@/store/authSlice";
 import { fetchAllReviews } from "@/store/reviewsSlice";
-import { fetchAdminChats } from "@/store/chatSlice";
+import { fetchAllChats } from "@/store/chatSlice";
 import Link from "next/link";
 import Image from "next/image";
 
@@ -117,7 +117,7 @@ export default function Dashboard() {
         dispatch(fetchProducts()),
         dispatch(fetchUsers()),
         dispatch(fetchAllReviews()),
-        dispatch(fetchAdminChats())
+        dispatch(fetchAllChats())
       ]);
       
       setRealTimeData(prev => ({ 
@@ -309,7 +309,7 @@ export default function Dashboard() {
       dispatch(fetchProducts());
       dispatch(fetchUsers());
       dispatch(fetchAllReviews());
-      dispatch(fetchAdminChats());
+      dispatch(fetchAllChats());
       setIsInitialLoad(false);
     }
   }, [dispatch, isInitialLoad]);

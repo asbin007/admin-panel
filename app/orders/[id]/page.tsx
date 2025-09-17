@@ -463,7 +463,7 @@ function AdminOrderDetail() {
         console.log('💳 Current payment status:', currentPaymentStatus);
         
         // Use the updated payment status function with better error handling
-        const result = await dispatch(updatePaymentStatus(id, paymentId, value as PaymentStatus, adminUserId)) as { success: boolean; error?: string; method?: string };
+        const result = await dispatch(updatePaymentStatus(id, paymentId, value as PaymentStatus, adminUserId)) as { success: boolean; error?: string; method?: string; details?: any };
         
         if (result.success) {
           console.log(`✅ Payment status updated successfully via ${result.method || 'API'}`);
@@ -474,8 +474,12 @@ function AdminOrderDetail() {
         } else if (result.error && result.error !== 'WebSocket timeout') {
           // Only show error if it's not a WebSocket timeout
           console.error('❌ Failed to update payment status:', result.error);
+          console.error('❌ Error details:', result.details);
           setIsUpdating(false);
-          return { success: false, error: result.error || 'Unknown error' };
+          
+          // Show specific error message to user
+          const errorMessage = result.details?.message || result.error || 'Unknown error';
+          return { success: false, error: errorMessage };
         } else {
           console.error('❌ Failed to update payment status:', result.error);
           // Show more specific error message
