@@ -41,7 +41,14 @@ export function RevenueChart({ orders, products }: RevenueChartProps) {
     }
 
     // Generate last 12 months data
-    const months = [];
+    const months: { 
+      month: string; 
+      monthNumber: number; 
+      year: number; 
+      revenue: number; 
+      profit: number; 
+      orders: number;
+    }[] = [];
     const now = new Date();
     
     for (let i = 11; i >= 0; i--) {

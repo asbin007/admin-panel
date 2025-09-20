@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { io, Socket } from 'socket.io-client';
+import io from 'socket.io-client';
 import { useAppDispatch } from '@/store/hooks';
 import { fetchOrders } from '@/store/orderSlice';
 import { fetchProducts } from '@/store/productSlice';
@@ -10,7 +10,7 @@ import { fetchAllReviews } from '@/store/reviewsSlice';
 import { fetchAllChats } from '@/store/chatSlice';
 
 interface WebSocketContextType {
-  socket: Socket | null;
+  socket: ReturnType<typeof io> | null;
   isConnected: boolean;
   connectionStatus: 'connecting' | 'connected' | 'disconnected' | 'error';
   lastUpdate: Date | null;
@@ -23,7 +23,7 @@ interface WebSocketProviderProps {
 }
 
 export function WebSocketProvider({ children }: WebSocketProviderProps) {
-  const [socket, setSocket] = useState<Socket | null>(null);
+  const [socket, setSocket] = useState<ReturnType<typeof io> | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'disconnected' | 'error'>('disconnected');
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
@@ -43,7 +43,6 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
           reconnection: true,
           reconnectionDelay: 1000,
           reconnectionAttempts: 5,
-          maxReconnectionAttempts: 5,
         });
 
         // Connection event handlers
@@ -54,26 +53,26 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
           setLastUpdate(new Date());
         });
 
-        newSocket.on('disconnect', (reason) => {
+        newSocket.on('disconnect', (reason: string) => {
           console.log('🔌 WebSocket disconnected:', reason);
           setIsConnected(false);
           setConnectionStatus('disconnected');
         });
 
-        newSocket.on('connect_error', (error) => {
+        newSocket.on('connect_error', (error: unknown) => {
           console.error('❌ WebSocket connection error:', error);
           setConnectionStatus('error');
           setIsConnected(false);
         });
 
-        newSocket.on('reconnect', (attemptNumber) => {
+        newSocket.on('reconnect', (attemptNumber: number) => {
           console.log('🔄 WebSocket reconnected after', attemptNumber, 'attempts');
           setIsConnected(true);
           setConnectionStatus('connected');
           setLastUpdate(new Date());
         });
 
-        newSocket.on('reconnect_error', (error) => {
+        newSocket.on('reconnect_error', (error: unknown) => {
           console.error('❌ WebSocket reconnection error:', error);
           setConnectionStatus('error');
         });
@@ -84,50 +83,50 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
         });
 
         // Real-time data update events
-        newSocket.on('order_updated', (data) => {
+        newSocket.on('order_updated', (data: unknown) => {
           console.log('📦 Order updated:', data);
           dispatch(fetchOrders());
           setLastUpdate(new Date());
         });
 
-        newSocket.on('order_created', (data) => {
+        newSocket.on('order_created', (data: unknown) => {
           console.log('📦 New order created:', data);
           dispatch(fetchOrders());
           setLastUpdate(new Date());
         });
 
-        newSocket.on('product_updated', (data) => {
+        newSocket.on('product_updated', (data: unknown) => {
           console.log('👟 Product updated:', data);
           dispatch(fetchProducts());
           setLastUpdate(new Date());
         });
 
-        newSocket.on('product_created', (data) => {
+        newSocket.on('product_created', (data: unknown) => {
           console.log('👟 New product created:', data);
           dispatch(fetchProducts());
           setLastUpdate(new Date());
         });
 
-        newSocket.on('user_updated', (data) => {
+        newSocket.on('user_updated', (data: unknown) => {
           console.log('👤 User updated:', data);
           dispatch(fetchUsers());
           setLastUpdate(new Date());
         });
 
-        newSocket.on('review_updated', (data) => {
+        newSocket.on('review_updated', (data: unknown) => {
           console.log('⭐ Review updated:', data);
           dispatch(fetchAllReviews());
           setLastUpdate(new Date());
         });
 
-        newSocket.on('chat_updated', (data) => {
+        newSocket.on('chat_updated', (data: unknown) => {
           console.log('💬 Chat updated:', data);
           dispatch(fetchAllChats());
           setLastUpdate(new Date());
         });
 
         // Dashboard refresh event
-        newSocket.on('dashboard_refresh', (data) => {
+        newSocket.on('dashboard_refresh', (data: unknown) => {
           console.log('🔄 Dashboard refresh requested:', data);
           // Refresh all data
           Promise.all([

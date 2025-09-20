@@ -29,7 +29,13 @@ export function DailySalesChart({ orders }: DailySalesChartProps) {
     }
 
     // Generate last 30 days data
-    const days = [];
+    const days: { 
+      date: string; 
+      fullDate: string; 
+      revenue: number; 
+      orders: number; 
+      dayOfWeek: number;
+    }[] = [];
     const now = new Date();
     
     for (let i = 29; i >= 0; i--) {
