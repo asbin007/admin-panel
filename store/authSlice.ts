@@ -93,12 +93,7 @@ export function loginUser(data:  { email: string; password: string }) {
           console.log('AuthSlice: User ID:', userId);
           console.log('AuthSlice: User Role:', userRole);
           
-          // Check if user is admin
-          if (userRole !== 'admin') {
-            console.log('❌ Access denied: User is not admin');
-            dispatch(setStatus(Status.ERROR));
-            throw new Error('Access denied. Admin role required.');
-          }
+          // Allow all authenticated users
           
           Cookies.set("tokenauth", token, {expires:7});
           // Also store in localStorage for WebSocket compatibility

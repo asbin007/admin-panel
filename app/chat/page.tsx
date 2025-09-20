@@ -13,6 +13,7 @@ import {
   updateChatLastMessage,
   markChatAsRead,
   setCurrentChat,
+  setMessages,
   type Message,
   type Chat
 } from "../../store/chatSlice";
@@ -40,15 +41,22 @@ export default function AdminChatPage() {
   const dispatch = useAppDispatch();
   const { user } = useAppSelector((state) => state.auth);
   const { 
-    chats, 
+    chats = [], 
     currentChat, 
-    messages, 
-    status, 
+    messages = [], 
+    status = 'idle', 
     error, 
-    unreadCount, 
-    isTyping, 
-    typingUsers 
+    unreadCount = 0, 
+    isTyping = false, 
+    typingUsers = [] 
   } = useAppSelector((state) => state.chat);
+  
+  // Debug logging
+  console.log('🔍 Chat Debug Info:');
+  console.log('  - Messages count:', messages.length);
+  console.log('  - Messages data:', messages);
+  console.log('  - Current chat:', currentChat);
+  console.log('  - Status:', status);
   
   const [message, setMessage] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
@@ -70,10 +78,10 @@ export default function AdminChatPage() {
 
   // Fetch chats on mount
   useEffect(() => {
-    if (user?.[0]?.id && user?.[0]?.role === 'admin') {
+    if (user?.[0]?.id) {
       dispatch(fetchAllChats());
     }
-  }, [dispatch, user?.[0]?.id, user?.[0]?.role]);
+  }, [dispatch, user?.[0]?.id]);
 
   // WebSocket event listeners
   useEffect(() => {
@@ -113,8 +121,17 @@ export default function AdminChatPage() {
   }, [dispatch, currentChat?.id, user?.[0]?.id]);
 
   const handleSelectChat = async (chat: Chat) => {
+    console.log('🔍 Selecting chat:', chat.id);
     dispatch(setCurrentChat(chat));
-    dispatch(fetchChatMessages({ chatId: chat.id }));
+    
+    // Clear existing messages first
+    dispatch(setMessages([]));
+    
+    // Fetch messages for the selected chat
+    const result = await dispatch(fetchChatMessages({ chatId: chat.id }));
+    console.log('🔍 Fetch messages result:', result);
+    
+    // Mark messages as read (this will fail gracefully if endpoint doesn't exist)
     dispatch(markMessagesAsRead(chat.id));
   };
 
@@ -197,16 +214,6 @@ export default function AdminChatPage() {
     chat.lastMessage?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  if (user?.[0]?.role !== 'admin') {
-    return (
-      <div className="flex items-center justify-center h-screen">
-          <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Access Denied</h1>
-          <p className="text-gray-600">You need admin privileges to access this page.</p>
-          </div>
-        </div>
-    );
-  }
 
     return (
     <div className="h-screen bg-gray-100 flex">
@@ -323,14 +330,14 @@ export default function AdminChatPage() {
                 <div className="flex justify-center">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
                 </div>
-              ) : messages.length === 0 ? (
+              ) : (!messages || messages.length === 0) ? (
                 <div className="text-center text-gray-400 py-8">
                   <MessageCircle className="w-12 h-12 mx-auto mb-2 opacity-50" />
                   <p>No messages yet</p>
                   <p className="text-xs">Start the conversation!</p>
                   </div>
                 ) : (
-                messages.map((msg) => (
+                (messages || []).map((msg) => (
                   <div
                     key={msg.id}
                     className={`flex ${msg.senderId === user?.[0]?.id ? "justify-end" : "justify-start"}`}

@@ -17,8 +17,7 @@ export function middleware(request: NextRequest) {
   if (request.nextUrl.pathname.startsWith('/dashboard') ||
       request.nextUrl.pathname.startsWith('/orders') ||
       request.nextUrl.pathname.startsWith('/products') ||
-      request.nextUrl.pathname.startsWith('/userTable') ||
-      request.nextUrl.pathname.startsWith('/chat')) {
+      request.nextUrl.pathname.startsWith('/userTable')) {
     
     if (!token) {
       console.log('Middleware: No token found, redirecting to login');
@@ -36,6 +35,14 @@ export function middleware(request: NextRequest) {
       }
     } catch {
       console.log('Middleware: Invalid token, redirecting to login');
+      return NextResponse.redirect(new URL("/user/login", request.url));
+    }
+  }
+
+  // Check for chat route - only require token, no role restriction
+  if (request.nextUrl.pathname.startsWith('/chat')) {
+    if (!token) {
+      console.log('Middleware: No token found, redirecting to login');
       return NextResponse.redirect(new URL("/user/login", request.url));
     }
   }

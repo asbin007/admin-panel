@@ -3,6 +3,7 @@
 import { Provider } from 'react-redux';
 import store from '@/store/store';
 import { ThemeProvider } from '@/components/ui/theme-provider';
+import { WebSocketProvider } from '@/components/WebSocketProvider';
 import io from 'socket.io-client';
 import { useEffect, useState, Component } from 'react';
 
@@ -393,7 +394,9 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
           enableSystem
           disableTransitionOnChange
         >
-          {children}
+          <WebSocketProvider>
+            {children}
+          </WebSocketProvider>
         </ThemeProvider>
       </Provider>
     </ChunkLoadErrorBoundary>

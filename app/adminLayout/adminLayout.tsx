@@ -13,6 +13,7 @@ import {
   Settings,
   LogOut,
   BarChart3,
+  MessageCircle,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -36,7 +37,7 @@ import { useEffect, useState, useCallback } from "react";
 import Cookies from "js-cookie";
 import { socket } from "@/app/app";
 import NotificationToast from "@/components/NotificationToast";
-import DebugChatWidget from "@/components/DebugChatWidget";
+import SimpleChatWidget from "@/components/SimpleChatWidget";
 
 
 export default function AdminLayout({
@@ -274,6 +275,18 @@ export default function AdminLayout({
                 <Star className="h-4 w-4" />
                 Reviews
               </Link>
+              <Link
+                href="/chat"
+                className="flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary"
+              >
+                <MessageCircle className="h-4 w-4" />
+                Chat
+                {unreadCount > 0 && (
+                  <Badge className="ml-auto flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-red-500 text-white">
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </Badge>
+                )}
+              </Link>
                <Link
                  href="/settings"
                  className="flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary"
@@ -363,6 +376,18 @@ export default function AdminLayout({
                   <Star className="h-5 w-5" />
                   Reviews
                 </Link>
+                <Link
+                  href="/chat"
+                  className="mx-[-0.65rem] flex items-center gap-4 rounded-xl px-3 py-2 text-muted-foreground hover:text-foreground"
+                >
+                  <MessageCircle className="h-5 w-5" />
+                  Chat
+                  {unreadCount > 0 && (
+                    <Badge className="ml-auto flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-red-500 text-white">
+                      {unreadCount > 9 ? '9+' : unreadCount}
+                    </Badge>
+                  )}
+                </Link>
                  <Link
                    href="/settings"
                    className="mx-[-0.65rem] flex items-center gap-4 rounded-xl px-3 py-2 text-muted-foreground hover:text-foreground"
@@ -403,7 +428,7 @@ export default function AdminLayout({
       ))}
       
       {/* Debug Chat Widget */}
-      <DebugChatWidget />
+      <SimpleChatWidget />
     </div>
   );
 }

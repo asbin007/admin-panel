@@ -42,6 +42,11 @@ import { fetchAllReviews } from "@/store/reviewsSlice";
 import { fetchAllChats } from "@/store/chatSlice";
 import Link from "next/link";
 import Image from "next/image";
+import { RevenueChart } from "@/components/charts/RevenueChart";
+import { OrderStatusChart } from "@/components/charts/OrderStatusChart";
+import { ProductPerformanceChart } from "@/components/charts/ProductPerformanceChart";
+import { DailySalesChart } from "@/components/charts/DailySalesChart";
+import { WebSocketStatus } from "@/components/WebSocketStatus";
 
 interface OrderItem {
   productId: string;
@@ -430,11 +435,14 @@ export default function Dashboard() {
             <p className="text-muted-foreground">Real-time business analytics and management</p>
             
             {/* Real-time Status */}
-            <div className="flex items-center gap-2 mt-2">
-              <div className={`w-2 h-2 rounded-full ${realTimeData.isLive ? 'bg-green-500 animate-pulse' : 'bg-gray-400'}`} />
-              <span className="text-xs text-muted-foreground">
-                {realTimeData.isLive ? 'Live updating...' : `Last updated: ${realTimeData.lastUpdated.toLocaleTimeString()}`}
-              </span>
+            <div className="flex items-center gap-4 mt-2">
+              <div className="flex items-center gap-2">
+                <div className={`w-2 h-2 rounded-full ${realTimeData.isLive ? 'bg-green-500 animate-pulse' : 'bg-gray-400'}`} />
+                <span className="text-xs text-muted-foreground">
+                  {realTimeData.isLive ? 'Live updating...' : `Last updated: ${realTimeData.lastUpdated.toLocaleTimeString()}`}
+                </span>
+              </div>
+              <WebSocketStatus />
             </div>
           </div>
           <div className="flex items-center space-x-2">
@@ -758,6 +766,88 @@ export default function Dashboard() {
               </CardContent>
             </Card>
           </Link>
+        </div>
+
+        {/* Charts Section */}
+        <div className="grid gap-6 md:grid-cols-2">
+          {/* Revenue Chart */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <TrendingUp className="h-5 w-5 text-blue-600" />
+                Revenue & Profit Trends
+                {realTimeData.isLive && (
+                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                )}
+              </CardTitle>
+              <CardDescription>
+                Monthly revenue and profit analysis
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <RevenueChart orders={orders} products={products} />
+            </CardContent>
+          </Card>
+
+          {/* Order Status Chart */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <PieChart className="h-5 w-5 text-blue-600" />
+                Order Status Distribution
+                {realTimeData.isLive && (
+                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                )}
+              </CardTitle>
+              <CardDescription>
+                Current order status breakdown
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <OrderStatusChart orders={orders} />
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Additional Charts */}
+        <div className="grid gap-6 md:grid-cols-2">
+          {/* Product Performance Chart */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <BarChart3 className="h-5 w-5 text-blue-600" />
+                Top Products Performance
+                {realTimeData.isLive && (
+                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                )}
+              </CardTitle>
+              <CardDescription>
+                Best selling products by quantity
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ProductPerformanceChart products={products} />
+            </CardContent>
+          </Card>
+
+          {/* Daily Sales Chart */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Activity className="h-5 w-5 text-blue-600" />
+                Daily Sales Trend
+                {realTimeData.isLive && (
+                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                )}
+              </CardTitle>
+              <CardDescription>
+                Last 30 days sales performance
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <DailySalesChart orders={orders} />
+            </CardContent>
+          </Card>
         </div>
 
         {/* Top Selling Products */}

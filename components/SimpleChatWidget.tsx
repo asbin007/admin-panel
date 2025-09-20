@@ -25,11 +25,12 @@ import {
   Maximize2, 
   Search,
   Check,
-  CheckCheck
+  CheckCheck,
+  Paperclip
 } from "lucide-react";
 import toast from "react-hot-toast";
 
-export default function EnhancedChatWidget() {
+export default function SimpleChatWidget() {
   const dispatch = useAppDispatch();
   const { user } = useAppSelector((state) => state.auth);
   const { 
@@ -64,10 +65,10 @@ export default function EnhancedChatWidget() {
 
   // Fetch chats on mount
   useEffect(() => {
-    if (user?.[0]?.id && user?.[0]?.role === 'admin') {
+    if (user?.[0]?.id) {
       dispatch(fetchAllChats());
     }
-  }, [dispatch, user?.[0]?.id, user?.[0]?.role]);
+  }, [dispatch, user?.[0]?.id]);
 
   // WebSocket event listeners
   useEffect(() => {
@@ -179,16 +180,7 @@ export default function EnhancedChatWidget() {
 
   const formatTime = (timestamp: string) => {
     const date = new Date(timestamp);
-    const now = new Date();
-    const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
-    
-    if (diffInHours < 1) {
-      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    } else if (diffInHours < 24) {
-      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    } else {
-      return date.toLocaleDateString();
-    }
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
   const filteredChats = chats.filter(chat => 
@@ -196,8 +188,8 @@ export default function EnhancedChatWidget() {
     chat.lastMessage?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // Only show for admin users
-  if (user?.[0]?.role !== 'admin') {
+  // Show chat widget for all users
+  if (!user?.[0]?.id) {
     return null;
   }
 
@@ -376,14 +368,14 @@ export default function EnhancedChatWidget() {
                       <div className="flex justify-center">
                         <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
                       </div>
-                    ) : messages.length === 0 ? (
+                    ) : (!messages || messages.length === 0) ? (
                       <div className="text-center text-gray-400 py-4">
                         <MessageCircle className="w-8 h-8 mx-auto mb-2 opacity-50" />
                         <p className="text-xs">No messages yet</p>
                         <p className="text-xs">Start the conversation!</p>
                       </div>
                     ) : (
-                      messages.map((msg) => (
+                      (messages || []).map((msg) => (
                         <div
                           key={msg.id}
                           className={`flex ${msg.senderId === user?.[0]?.id ? "justify-end" : "justify-start"}`}
@@ -466,13 +458,12 @@ export default function EnhancedChatWidget() {
                   {/* Input */}
                   <div className="p-3 border-t border-gray-100 bg-white">
                     <div className="flex items-center gap-2">
-                      <input
-                        type="file"
-                        ref={fileInputRef}
-                        accept="image/*"
-                        onChange={handleImageSelect}
-                        className="hidden"
-                      />
+                      <button
+                        onClick={() => fileInputRef.current?.click()}
+                        className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                      >
+                        <Paperclip className="w-4 h-4" />
+                      </button>
                       
                       <input
                         type="text"
@@ -493,6 +484,15 @@ export default function EnhancedChatWidget() {
                         <Send className="w-4 h-4" />
                       </button>
                     </div>
+                    
+                    {/* Hidden file input */}
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageSelect}
+                      className="hidden"
+                    />
                   </div>
                 </>
               ) : (

@@ -106,9 +106,11 @@ export const fetchAllChats = createAsyncThunk(
   'chat/fetchAllChats',
   async (_, { rejectWithValue }) => {
     try {
+      // Use admin-specific endpoint for admin users
       const response = await APIS.get('/chats/admin/all');
-      return response.data.data;
+      return response.data.data || response.data;
     } catch (error: any) {
+      console.error('❌ Failed to fetch admin chats:', error.response?.data);
       return rejectWithValue(error.response?.data?.message || 'Failed to fetch chats');
     }
   }
@@ -118,9 +120,17 @@ export const fetchChatMessages = createAsyncThunk(
   'chat/fetchChatMessages',
   async ({ chatId, page = 1, limit = 50 }: { chatId: string; page?: number; limit?: number }, { rejectWithValue }) => {
     try {
+      // Use admin-specific endpoint for admin users
       const response = await APIS.get(`/chats/admin/${chatId}/messages?page=${page}&limit=${limit}`);
-      return response.data.data;
+      console.log('📡 Raw API response:', response.data);
+      
+      // Handle different response formats
+      const messages = response.data.data || response.data.messages || response.data;
+      console.log('📨 Processed messages:', messages);
+      
+      return messages;
     } catch (error: any) {
+      console.error('❌ Failed to fetch admin chat messages:', error.response?.data);
       return rejectWithValue(error.response?.data?.message || 'Failed to fetch messages');
     }
   }
@@ -159,10 +169,18 @@ export const markMessagesAsRead = createAsyncThunk(
   'chat/markMessagesAsRead',
   async (chatId: string, { rejectWithValue }) => {
     try {
+      // Try admin-specific mark-read endpoint
       await APIS.post(`/chats/admin/${chatId}/mark-read`);
+      console.log(`✅ Messages marked as read for chat: ${chatId}`);
       return chatId;
     } catch (error: any) {
-      return rejectWithValue(error.response?.data?.message || 'Failed to mark messages as read');
+      // If endpoint doesn't exist (404), just continue without marking
+      if (error.response?.status === 404) {
+        console.log(`⚠️ Mark-read endpoint not available (404), continuing without marking: ${chatId}`);
+      } else {
+        console.error(`❌ Mark-read failed:`, error.response?.data);
+      }
+      return chatId;
     }
   }
 );
@@ -171,9 +189,13 @@ export const fetchUnreadCount = createAsyncThunk(
   'chat/fetchUnreadCount',
   async (_, { rejectWithValue }) => {
     try {
-      const response = await APIS.get('/chats/admin/unread/count');
-      return response.data.data.unreadCount;
+      // Calculate unread count from admin chats
+      const response = await APIS.get('/chats/admin/all');
+      const chats = response.data.data || response.data || [];
+      const unreadCount = chats.reduce((total: number, chat: any) => total + (chat.unreadCount || 0), 0);
+      return unreadCount;
     } catch (error: any) {
+      console.error('❌ Failed to fetch admin unread count:', error.response?.data);
       return rejectWithValue(error.response?.data?.message || 'Failed to fetch unread count');
     }
   }
@@ -186,6 +208,9 @@ const chatSlice = createSlice({
   reducers: {
     setCurrentChat: (state, action: PayloadAction<Chat | null>) => {
       state.currentChat = action.payload;
+    },
+    setMessages: (state, action: PayloadAction<Message[]>) => {
+      state.messages = action.payload;
     },
     addMessage: (state, action: PayloadAction<Message>) => {
       if (!state.messages) {
@@ -310,7 +335,9 @@ const chatSlice = createSlice({
       })
       .addCase(fetchChatMessages.fulfilled, (state, action) => {
         state.status = Status.SUCCESS;
-        state.messages = action.payload.messages;
+        // Handle both response formats: direct array or wrapped in messages property
+        state.messages = Array.isArray(action.payload) ? action.payload : (action.payload.messages || action.payload.data || []);
+        console.log('✅ Messages loaded in store:', state.messages.length);
       })
       .addCase(fetchChatMessages.rejected, (state, action) => {
         state.status = Status.ERROR;
@@ -366,6 +393,7 @@ const chatSlice = createSlice({
 
 export const {
   setCurrentChat,
+  setMessages,
   addMessage,
   updateMessage,
   setTyping,
