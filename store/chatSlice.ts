@@ -94,7 +94,7 @@ export const createOrGetChat = createAsyncThunk(
   'chat/createOrGetChat',
   async ({ adminId }: { adminId: string }, { rejectWithValue }) => {
     try {
-      const response = await APIS.post('/chats/create-or-get', { adminId });
+      const response = await APIS.post('/chats/get-or-create', { adminId });
       return response.data.data;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || 'Failed to create/get chat');
