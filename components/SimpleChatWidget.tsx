@@ -65,10 +65,10 @@ export default function SimpleChatWidget() {
 
   // Fetch chats on mount
   useEffect(() => {
-    if (user?.[0]?.id) {
+    if (user?.id) {
       dispatch(fetchAllChats());
     }
-  }, [dispatch, user?.[0]?.id]);
+  }, [dispatch, user?.id]);
 
   // WebSocket event listeners
   useEffect(() => {
@@ -87,14 +87,14 @@ export default function SimpleChatWidget() {
     };
 
     const handleTyping = ({ chatId, userId }: { chatId: string; userId: string }) => {
-      const currentUserId = user?.[0]?.id;
+      const currentUserId = user?.id;
       if (currentChat?.id === chatId && userId !== currentUserId) {
         dispatch(setTyping({ isTyping: true, userId }));
       }
     };
 
     const handleStopTyping = ({ chatId, userId }: { chatId: string; userId: string }) => {
-      const currentUserId = user?.[0]?.id;
+      const currentUserId = user?.id;
       if (currentChat?.id === chatId && userId !== currentUserId) {
         dispatch(setTyping({ isTyping: false, userId }));
       }
@@ -163,7 +163,7 @@ export default function SimpleChatWidget() {
 
   const handleTyping = () => {
     if (currentChat) {
-      const currentUserId = user?.[0]?.id;
+      const currentUserId = user?.id;
       socket.emit("typing", {
         chatId: currentChat.id, 
         userId: currentUserId 
@@ -189,7 +189,7 @@ export default function SimpleChatWidget() {
   );
 
   // Show chat widget for all users
-  if (!user?.[0]?.id) {
+  if (!user?.id) {
     return null;
   }
 
@@ -378,14 +378,14 @@ export default function SimpleChatWidget() {
                       (messages || []).map((msg) => (
                         <div
                           key={msg.id}
-                          className={`flex ${msg.senderId === user?.[0]?.id ? "justify-end" : "justify-start"}`}
+                          className={`flex ${msg.senderId === user?.id ? "justify-end" : "justify-start"}`}
                         >
                           <div
-                            className={`max-w-[75%] px-3 py-2 rounded-2xl text-xs ${
-                              msg.senderId === user?.[0]?.id
-                                ? "bg-blue-600 text-white"
-                                : "bg-white border border-gray-200 text-gray-800"
-                            }`}
+                          className={`max-w-[75%] px-3 py-2 rounded-2xl text-xs ${
+                            msg.senderId === user?.id
+                              ? "bg-blue-600 text-white"
+                              : "bg-white border border-gray-200 text-gray-800"
+                          }`}
                           >
                             {msg.imageUrl && (
                               <div className="mb-2">
@@ -401,7 +401,7 @@ export default function SimpleChatWidget() {
                             <div className="mt-1 flex items-center justify-between text-[10px]">
                               <span className="opacity-75">{formatTime(msg.createdAt)}</span>
                               <div className="flex items-center space-x-1">
-                                {msg.senderId === user?.[0]?.id && (
+                                {msg.senderId === user?.id && (
                                   <>
                                     <Check className="w-2 h-2" />
                                     {msg.isRead && <CheckCheck className="w-2 h-2 text-blue-400" />}

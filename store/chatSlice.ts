@@ -106,8 +106,8 @@ export const fetchAllChats = createAsyncThunk(
   'chat/fetchAllChats',
   async (_, { rejectWithValue }) => {
     try {
-      // Use admin-specific endpoint for admin users
-      const response = await APIS.get('/chats/admin/all');
+      // Use unified endpoint for all users
+      const response = await APIS.get('/chats/all');
       return response.data.data || response.data;
     } catch (error: any) {
       console.error('❌ Failed to fetch admin chats:', error.response?.data);
@@ -120,8 +120,8 @@ export const fetchChatMessages = createAsyncThunk(
   'chat/fetchChatMessages',
   async ({ chatId, page = 1, limit = 50 }: { chatId: string; page?: number; limit?: number }, { rejectWithValue }) => {
     try {
-      // Use admin-specific endpoint for admin users
-      const response = await APIS.get(`/chats/admin/${chatId}/messages?page=${page}&limit=${limit}`);
+      // Use unified endpoint for all users
+      const response = await APIS.get(`/chats/${chatId}/messages?page=${page}&limit=${limit}`);
       console.log('📡 Raw API response:', response.data);
       
       // Handle different response formats
@@ -153,7 +153,7 @@ export const sendMessage = createAsyncThunk(
       if (replyToId) formData.append('replyToId', replyToId);
       if (image) formData.append('image', image);
 
-      const response = await APIS.post('/chats/admin/send-message', formData, {
+      const response = await APIS.post('/chats/send-message', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
@@ -169,8 +169,8 @@ export const markMessagesAsRead = createAsyncThunk(
   'chat/markMessagesAsRead',
   async (chatId: string, { rejectWithValue }) => {
     try {
-      // Try admin-specific mark-read endpoint
-      await APIS.post(`/chats/admin/${chatId}/mark-read`);
+      // Use unified mark-read endpoint
+      await APIS.post(`/chats/${chatId}/mark-read`);
       console.log(`✅ Messages marked as read for chat: ${chatId}`);
       return chatId;
     } catch (error: any) {
@@ -189,8 +189,8 @@ export const fetchUnreadCount = createAsyncThunk(
   'chat/fetchUnreadCount',
   async (_, { rejectWithValue }) => {
     try {
-      // Calculate unread count from admin chats
-      const response = await APIS.get('/chats/admin/all');
+      // Calculate unread count from all chats
+      const response = await APIS.get('/chats/all');
       const chats = response.data.data || response.data || [];
       const unreadCount = chats.reduce((total: number, chat: any) => total + (chat.unreadCount || 0), 0);
       return unreadCount;
