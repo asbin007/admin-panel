@@ -16,7 +16,7 @@ import {
   type Message,
   type Chat
 } from "../store/chatSlice";
-import { socket } from "../app/app";
+import { socket } from "../app";
 import { 
   Send, 
   X, 
@@ -87,15 +87,13 @@ export default function SimpleChatWidget() {
     };
 
     const handleTyping = ({ chatId, userId }: { chatId: string; userId: string }) => {
-      const currentUserId = user?.id;
-      if (currentChat?.id === chatId && userId !== currentUserId) {
+      if (currentChat?.id === chatId && userId !== user?.id) {
         dispatch(setTyping({ isTyping: true, userId }));
       }
     };
 
     const handleStopTyping = ({ chatId, userId }: { chatId: string; userId: string }) => {
-      const currentUserId = user?.id;
-      if (currentChat?.id === chatId && userId !== currentUserId) {
+      if (currentChat?.id === chatId && userId !== user?.id) {
         dispatch(setTyping({ isTyping: false, userId }));
       }
     };
@@ -109,7 +107,7 @@ export default function SimpleChatWidget() {
       socket.off("typing", handleTyping);
       socket.off("stopTyping", handleStopTyping);
     };
-  }, [dispatch, currentChat?.id, user?.[0]?.id, isOpen, isMinimized]);
+  }, [dispatch, currentChat?.id, user?.id, isOpen, isMinimized]);
 
   const handleSelectChat = async (chat: Chat) => {
     dispatch(setCurrentChat(chat));
@@ -163,16 +161,15 @@ export default function SimpleChatWidget() {
 
   const handleTyping = () => {
     if (currentChat) {
-      const currentUserId = user?.id;
       socket.emit("typing", {
         chatId: currentChat.id, 
-        userId: currentUserId 
+        userId: user?.id 
       });
         
       setTimeout(() => {
         socket.emit("stopTyping", { 
           chatId: currentChat.id, 
-          userId: currentUserId 
+          userId: user?.id 
         });
       }, 2000);
     }

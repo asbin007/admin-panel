@@ -78,10 +78,10 @@ export default function AdminChatPage() {
 
   // Fetch chats on mount
   useEffect(() => {
-    if (user?.[0]?.id) {
+    if (user?.id) {
       dispatch(fetchAllChats());
     }
-  }, [dispatch, user?.[0]?.id]);
+  }, [dispatch, user?.id]);
 
   // WebSocket event listeners
   useEffect(() => {
@@ -98,13 +98,13 @@ export default function AdminChatPage() {
     };
 
     const handleTyping = ({ chatId, userId }: { chatId: string; userId: string }) => {
-      if (currentChat?.id === chatId && userId !== user?.[0]?.id) {
+      if (currentChat?.id === chatId && userId !== user?.id) {
         dispatch(setTyping({ isTyping: true, userId }));
       }
     };
 
     const handleStopTyping = ({ chatId, userId }: { chatId: string; userId: string }) => {
-      if (currentChat?.id === chatId && userId !== user?.[0]?.id) {
+      if (currentChat?.id === chatId && userId !== user?.id) {
         dispatch(setTyping({ isTyping: false, userId }));
       }
     };
@@ -118,7 +118,7 @@ export default function AdminChatPage() {
       socket.off("typing", handleTyping);
       socket.off("stopTyping", handleStopTyping);
     };
-  }, [dispatch, currentChat?.id, user?.[0]?.id]);
+  }, [dispatch, currentChat?.id, user?.id]);
 
   const handleSelectChat = async (chat: Chat) => {
     console.log('🔍 Selecting chat:', chat.id);
@@ -181,17 +181,17 @@ export default function AdminChatPage() {
 
   const handleTyping = () => {
     if (currentChat) {
-                  socket.emit("typing", {
+      socket.emit("typing", {
         chatId: currentChat.id, 
-        userId: user?.[0]?.id 
+        userId: user?.id 
       });
         
-        setTimeout(() => {
-          socket.emit("stopTyping", { 
+      setTimeout(() => {
+        socket.emit("stopTyping", { 
           chatId: currentChat.id, 
-            userId: user?.[0]?.id 
-          });
-        }, 2000);
+          userId: user?.id 
+        });
+      }, 2000);
     }
   };
 
@@ -340,11 +340,11 @@ export default function AdminChatPage() {
                 (messages || []).map((msg) => (
                   <div
                     key={msg.id}
-                    className={`flex ${msg.senderId === user?.[0]?.id ? "justify-end" : "justify-start"}`}
+                    className={`flex ${msg.senderId === user?.id ? "justify-end" : "justify-start"}`}
                   >
                     <div
                       className={`max-w-[75%] px-4 py-3 rounded-2xl ${
-                        msg.senderId === user?.[0]?.id
+                        msg.senderId === user?.id
                           ? "bg-blue-600 text-white"
                           : "bg-white border border-gray-200 text-gray-800"
                       }`}
@@ -363,7 +363,7 @@ export default function AdminChatPage() {
                       <div className="mt-1 flex items-center justify-between text-[10px]">
                         <span className="opacity-75">{formatTime(msg.createdAt)}</span>
                         <div className="flex items-center space-x-1">
-                          {msg.senderId === user?.[0]?.id && (
+                          {msg.senderId === user?.id && (
                             <>
                               <Check className="w-3 h-3" />
                               {msg.isRead && <CheckCheck className="w-3 h-3 text-blue-400" />}
