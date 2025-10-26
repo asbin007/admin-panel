@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { APIS } from "@/globals/http";
+import { API } from "@/globals/http";
 
 export default function AdminRegisterPage() {
   const [formData, setFormData] = useState({
@@ -39,12 +39,15 @@ export default function AdminRegisterPage() {
     setLoading(true);
 
     try {
-      const response = await APIS.post("/auth/admin/register", {
+      console.log("Registering admin with data:", { username: formData.username, email: formData.email });
+      const response = await API.post("/auth/admin/register", {
         username: formData.username,
         email: formData.email,
         password: formData.password
       });
 
+      console.log("Registration response:", response);
+      
       if (response.status === 201) {
         setSuccess("Admin account created successfully! You can now login.");
         setTimeout(() => {
@@ -53,7 +56,9 @@ export default function AdminRegisterPage() {
       }
     } catch (error: any) {
       console.error("Admin registration error:", error);
-      setError(error.response?.data?.message || "Failed to create admin account");
+      console.error("Error details:", error.response?.data);
+      const errorMessage = error.response?.data?.message || error.message || "Failed to create admin account";
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }

@@ -33,6 +33,7 @@ import { useAppDispatch } from "@/store/hooks";
 import { deleteProduct } from "@/store/productSlice";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { BackButton } from "@/components/ui/back-button";
 import { useState } from "react";
 import {
   Dialog,
@@ -226,6 +227,7 @@ export function ProductTable({ products = [] }: { products?: IProduct[] }) {
 
   return (
     <AdminLayout>
+      <BackButton className="mb-4" />
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <div>

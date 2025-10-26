@@ -25,6 +25,7 @@ import { socket } from "@/app/app";
 import Link from "next/link";
 import { Trash2, MoreHorizontal, CheckSquare, Square } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { BackButton } from "@/components/ui/back-button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -274,6 +275,7 @@ export default function Orders() {
   return (
     <AdminLayout>
       <div className="space-y-6">
+        <BackButton />
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Orders</h1>
@@ -464,10 +466,10 @@ export default function Orders() {
             <AlertDialogTitle>Delete Multiple Orders</AlertDialogTitle>
             <AlertDialogDescription>
               Are you sure you want to delete {selectedOrders.length} selected orders? This action cannot be undone.
-              <div className="mt-2 p-2 bg-muted rounded text-sm">
-                Selected Orders: {selectedOrders.length}
-              </div>
             </AlertDialogDescription>
+            <div className="mt-2 p-2 bg-muted rounded text-sm">
+              Selected Orders: {selectedOrders.length}
+            </div>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>

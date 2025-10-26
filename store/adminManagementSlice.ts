@@ -1,5 +1,5 @@
 import { createSlice, PayloadAction, createAsyncThunk } from "@reduxjs/toolkit";
-import { APIS } from "../globals/http";
+import { APIS, API } from "../globals/http";
 import { Status } from "./authSlice";
 
 export interface Admin {
@@ -303,7 +303,8 @@ export const createAdmin = createAsyncThunk(
   'adminManagement/createAdmin',
   async (adminData: { username: string; email: string; password: string; isVerified?: boolean }, { rejectWithValue }) => {
     try {
-      const response = await APIS.post('/auth/admin/register', adminData);
+      // Use API instead of APIS for registration endpoint which may not require authentication
+      const response = await API.post('/auth/admin/register', adminData);
       
       if (response.status === 201) {
         return response.data;

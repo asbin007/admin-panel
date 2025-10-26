@@ -8,8 +8,8 @@ import io from 'socket.io-client';
 import { useEffect, useState, Component } from 'react';
 
 // Socket URL configuration
-const SOCKET_URL = "https://nike-backend-1-g9i6.onrender.com";
-// const SOCKET_URL = "http://localhost:5000";
+// const SOCKET_URL = "https://nike-backend-1-g9i6.onrender.com";
+const SOCKET_URL = "http://localhost:5000";
 
 // Error Boundary Component
 interface ErrorBoundaryState {
@@ -210,7 +210,7 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
     };
 
     socket.on('connect', () => {
-      console.log('✅ WebSocket connected successfully to:', "https://nike-backend-1-g9i6.onrender.com");
+      console.log('✅ WebSocket connected successfully to:', "http://localhost:5000");
       console.log('🔌 Socket ID:', socket.id);
       console.log('🔌 Transport:', (socket.io as { engine?: { transport?: { name?: string } } }).engine?.transport?.name || 'unknown');
       setConnectionStatus('connected');

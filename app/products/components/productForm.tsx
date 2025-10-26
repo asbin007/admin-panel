@@ -143,7 +143,7 @@ const AddProductForm: React.FC<AddProductFormProps> = ({ closeModal, editProduct
       // Set existing images as previews
       if (editProduct.images && editProduct.images.length > 0) {
         setImagePreviews(editProduct.images.map((img: string) => 
-          img.startsWith('http') ? img : `https://res.cloudinary.com/dxpe7jikz/image/upload/v1750340657${img.replace('/uploads', '')}.jpg`
+          img.startsWith('http') ? img : `https://res.cloudinary.com/dxpe7jikz/image/upload/v1750340657/${img.replace('/uploads', '')}.jpg`
         ))
       }
     }

@@ -1,8 +1,8 @@
 import axios from "axios";
 
 const API = axios.create({
-  baseURL: "https://nike-backend-1-g9i6.onrender.com/api",
-    // baseURL: "http://localhost:5000/api",
+  // baseURL: "https://nike-backend-1-g9i6.onrender.com/api",
+  baseURL: "http://localhost:5000/api",
 
   headers: {
     "Content-Type": "application/json",
@@ -11,8 +11,8 @@ const API = axios.create({
 });
 
 const APIS = axios.create({
-  baseURL: "https://nike-backend-1-g9i6.onrender.com/api",
-  // baseURL: "http://localhost:5000/api",
+  // baseURL: "https://nike-backend-1-g9i6.onrender.com/api",
+  baseURL: "http://localhost:5000/api",
 
   headers: {
     "Content-Type": "application/json",

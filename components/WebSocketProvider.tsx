@@ -37,7 +37,7 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
         setConnectionStatus('connecting');
         
         // Connect to WebSocket server
-        const newSocket = io('wss://nike-backend-1-g9i6.onrender.com', {
+        const newSocket = io('ws://localhost:5000', {
           transports: ['websocket', 'polling'],
           timeout: 10000,
           reconnection: true,

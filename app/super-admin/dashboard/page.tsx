@@ -48,7 +48,6 @@ export default function SuperAdminDashboard() {
   });
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
-  const [errors, setErrors] = useState<string[]>([]);
   const [recentActivity, setRecentActivity] = useState<RecentActivity>({
     recentOrders: [],
     recentProducts: [],
@@ -84,59 +83,42 @@ export default function SuperAdminDashboard() {
   const fetchDashboardStats = async () => {
     try {
       setLoading(true);
-      setErrors([]);
       
       let allUsers = [];
       let orders = [];
       let products = [];
       let chats = [];
-      const errorMessages: string[] = [];
 
       // Fetch users (customers + admins)
       try {
         const usersResponse = await APIS.get("/auth/users");
         allUsers = usersResponse.data.data || [];
-      } catch (error) {
+      } catch (error: any) {
         console.warn("Failed to fetch users:", error);
-        errorMessages.push("Failed to load users data");
       }
       
       // Fetch orders
       try {
         const ordersResponse = await APIS.get("/order/all");
         orders = ordersResponse.data.data || [];
-      } catch (error) {
+      } catch (error: any) {
         console.warn("Failed to fetch orders:", error);
-        errorMessages.push("Failed to load orders data");
       }
       
       // Fetch products
       try {
         const productsResponse = await APIS.get("/product");
         products = productsResponse.data.data || [];
-      } catch (error) {
+      } catch (error: any) {
         console.warn("Failed to fetch products:", error);
-        errorMessages.push("Failed to load products data");
-        // Set fallback data for products
         products = [];
       }
       
-      // Fetch chat stats (requires authentication)
-      try {
-        const chatsResponse = await APIS.get("/chats/stats");
-        const chatStats = chatsResponse.data.data || {};
-        // Extract total chats from stats
-        chats = Array(chatStats.totalChats || 0).fill({});
-      } catch (error) {
-        console.warn("Failed to fetch chat stats:", error);
-        errorMessages.push("Failed to load chat statistics");
-        // Set fallback data for chats
-        chats = [];
-      }
+      // Skip chat stats for super admin (requires admin access)
+      chats = [];
 
       // Calculate stats
       const totalUsers = allUsers.filter((u: any) => u.role === 'customer').length;
-      const totalAdmins = allUsers.filter((u: any) => u.role === 'admin').length;
       const totalRevenue = orders.reduce((sum: number, order: any) => sum + (order.totalPrice || 0), 0);
       
       // Calculate additional stats from real data
@@ -151,7 +133,7 @@ export default function SuperAdminDashboard() {
 
       setStats({
         totalUsers,
-        totalAdmins,
+        totalAdmins: 0,
         totalOrders: orders.length,
         totalProducts,
         totalChats,
@@ -164,20 +146,8 @@ export default function SuperAdminDashboard() {
         recentProducts: products.slice(0, 5), // Last 5 products
         recentUsers: allUsers.slice(0, 5) // Last 5 users
       });
-
-      setErrors(errorMessages);
     } catch (error) {
       console.error("Error fetching dashboard stats:", error);
-      // Set default stats if everything fails
-      setStats({
-        totalUsers: 0,
-        totalAdmins: 0,
-        totalOrders: 0,
-        totalProducts: 0,
-        totalChats: 0,
-        totalRevenue: 0
-      });
-      setErrors(["Failed to load dashboard data"]);
     } finally {
       setLoading(false);
     }
@@ -237,39 +207,6 @@ export default function SuperAdminDashboard() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Error Messages */}
-        {errors.length > 0 && (
-          <div className="mb-6">
-            <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded-lg p-4">
-              <div className="flex items-center">
-                <AlertCircle className="h-5 w-5 text-yellow-600 dark:text-yellow-400 mr-2" />
-                <div>
-                  <h3 className="text-sm font-medium text-yellow-800 dark:text-yellow-200">
-                    Some data couldn't be loaded
-                  </h3>
-                  <div className="mt-1 text-sm text-yellow-700 dark:text-yellow-300">
-                    <ul className="list-disc list-inside space-y-1">
-                      {errors.map((error, index) => (
-                        <li key={index}>{error}</li>
-                      ))}
-                    </ul>
-                    <div className="mt-3">
-                      <Button 
-                        onClick={fetchDashboardStats}
-                        size="sm"
-                        variant="outline"
-                        className="text-yellow-700 border-yellow-300 hover:bg-yellow-100 dark:text-yellow-300 dark:border-yellow-600 dark:hover:bg-yellow-900/20"
-                      >
-                        Retry Loading Data
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* Quick Actions */}
         <div className="mb-8">
           <h2 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">Quick Actions</h2>
@@ -310,23 +247,6 @@ export default function SuperAdminDashboard() {
               </div>
               <p className="text-xs text-slate-600 dark:text-slate-400">
                 Active customers
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border-slate-200/50 dark:border-slate-700/50">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-slate-600 dark:text-slate-400">
-                Total Admins
-              </CardTitle>
-              <Shield className="h-4 w-4 text-slate-600 dark:text-slate-400" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-slate-900 dark:text-white">
-                {stats.totalAdmins}
-              </div>
-              <p className="text-xs text-slate-600 dark:text-slate-400">
-                Admin accounts
               </p>
             </CardContent>
           </Card>
@@ -391,7 +311,7 @@ export default function SuperAdminDashboard() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-slate-900 dark:text-white">
-                ${stats.totalRevenue.toLocaleString()}
+                Rs {stats.totalRevenue.toLocaleString()}
               </div>
               <p className="text-xs text-slate-600 dark:text-slate-400">
                 All time revenue
@@ -420,7 +340,7 @@ export default function SuperAdminDashboard() {
                           Order #{order.id?.slice(-8) || 'N/A'}
                         </p>
                         <p className="text-xs text-slate-600 dark:text-slate-400">
-                          ${order.totalPrice || 0}
+                          Rs {order.totalPrice || 0}
                         </p>
                       </div>
                       <Badge variant="secondary" className="text-xs">
@@ -453,7 +373,7 @@ export default function SuperAdminDashboard() {
                           {product.name || 'Unnamed Product'}
                         </p>
                         <p className="text-xs text-slate-600 dark:text-slate-400">
-                          ${product.price || 0}
+                          Rs {product.price || 0}
                         </p>
                       </div>
                       <Badge variant="secondary" className="text-xs">

@@ -155,8 +155,8 @@ export function deleteUserById(id: string) {
   return async function deleteUserByIdThunk(dispatch: AppDispatch, getState: () => any) {
     try {
       console.log("🗑️ Attempting to delete user with ID:", id);
-      console.log("🌐 API Base URL:", "https://nike-backend-1-g9i6.onrender.com/api");
-      console.log("🔗 Full delete URL:", `https://nike-backend-1-g9i6.onrender.com/api/auth/users/${id}`);
+      console.log("🌐 API Base URL:", "http://localhost:5000/api");
+      console.log("🔗 Full delete URL:", `http://localhost:5000/api/auth/users/${id}`);
       
       // Check if user is authenticated
       const token = localStorage.getItem("tokenauth");

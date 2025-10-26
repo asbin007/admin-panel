@@ -98,6 +98,26 @@ interface ProductData {
   image?: string;
 }
 
+// Cloudinary configuration
+const CLOUDINARY_VERSION = "v1750340657";
+const PLACEHOLDER_IMAGE = "/placeholder-image.svg";
+
+// Helper function to convert image path to Cloudinary URL
+const getImageUrl = (imagePath: string | undefined): string => {
+  if (!imagePath) return PLACEHOLDER_IMAGE;
+  if (imagePath.includes('cloudinary.com')) return imagePath;
+  if (imagePath.startsWith('http')) return imagePath;
+  
+  // Remove /uploads prefix
+  let cleanPath = imagePath.replace(/^\/?uploads\//, '');
+  cleanPath = cleanPath.startsWith('/') ? cleanPath.slice(1) : cleanPath;
+  if (!cleanPath.includes('.')) {
+    cleanPath += '.jpg';
+  }
+  
+  return `https://res.cloudinary.com/dxpe7jikz/image/upload/${CLOUDINARY_VERSION}/${cleanPath}`;
+};
+
 export default function Dashboard() {
   const dispatch = useAppDispatch();
   const { items: orders, status } = useAppSelector((store) => store.orders);
@@ -874,7 +894,7 @@ export default function Dashboard() {
                         {index + 1}
                       </div>
                       <Image
-                        src={product.images?.[0] || '/placeholder-image.svg'}
+                        src={getImageUrl(product.images?.[0])}
                         alt={product.name}
                         width={40}
                         height={40}

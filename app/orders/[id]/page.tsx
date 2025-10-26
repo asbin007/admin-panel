@@ -682,7 +682,7 @@ function AdminOrderDetail() {
                     <div className="w-16 h-16 bg-gray-100 rounded-lg flex items-center justify-center">
                       <NextImage
                         src={item.Shoe?.images?.[0]
-                          ? `https://res.cloudinary.com/dxpe7jikz/image/upload/v1750340657${
+                          ? `https://res.cloudinary.com/dxpe7jikz/image/upload/v1750340657/${
                               item.Shoe.images[0].startsWith("/uploads")
                                 ? item.Shoe.images[0].replace("/uploads", "")
                                 : item.Shoe.images[0]

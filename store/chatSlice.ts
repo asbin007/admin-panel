@@ -106,12 +106,50 @@ export const fetchAllChats = createAsyncThunk(
   'chat/fetchAllChats',
   async (_, { rejectWithValue }) => {
     try {
+      console.log('🔍 Attempting to fetch chats from:', 'http://localhost:5000/api/chats/all');
+      
+      // Check if we have authentication token
+      const token = localStorage.getItem("tokenauth");
+      console.log('🔑 Auth token present:', !!token);
+      
+      if (!token) {
+        console.warn('⚠️ No auth token found, chat feature not available');
+        return rejectWithValue('Authentication required for chat feature');
+      }
+      
       // Use unified endpoint for all users
       const response = await APIS.get('/chats/all');
+      console.log('✅ Chats fetched successfully:', response.data);
       return response.data.data || response.data;
     } catch (error: any) {
-      console.error('❌ Failed to fetch admin chats:', error.response?.data);
-      return rejectWithValue(error.response?.data?.message || 'Failed to fetch chats');
+      // If it's a 401 error, just return empty array - user not authenticated for chat
+      if (error.response?.status === 401) {
+        console.warn('⚠️ Chat feature requires authentication - returning empty chats');
+        return [];
+      }
+      
+      console.error('❌ Failed to fetch admin chats - Full error:', error);
+      console.error('❌ Error response:', error.response);
+      console.error('❌ Error status:', error.response?.status);
+      console.error('❌ Error data:', error.response?.data);
+      console.error('❌ Error message:', error.message);
+      
+      // Provide more detailed error information
+      let errorMessage = 'Failed to fetch chats';
+      
+      if (error.code === 'ECONNABORTED') {
+        errorMessage = 'Request timeout - backend server might not be running';
+      } else if (error.code === 'ERR_NETWORK') {
+        errorMessage = 'Network error - please check if backend server is running on localhost:5000';
+      } else if (error.response?.status === 404) {
+        errorMessage = 'Chat endpoint not found - /chats/all endpoint might not exist on backend';
+      } else if (error.response?.status === 500) {
+        errorMessage = 'Backend server error - check backend logs';
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      }
+      
+      return rejectWithValue(errorMessage);
     }
   }
 );
@@ -321,11 +359,15 @@ const chatSlice = createSlice({
       })
       .addCase(fetchAllChats.fulfilled, (state, action) => {
         state.status = Status.SUCCESS;
-        state.chats = action.payload;
+        state.chats = action.payload || [];
+        console.log('✅ Chats loaded in store:', state.chats.length);
       })
       .addCase(fetchAllChats.rejected, (state, action) => {
         state.status = Status.ERROR;
         state.error = action.payload as string;
+        // Set empty chats array to prevent UI errors
+        state.chats = [];
+        console.warn('⚠️ Chat feature disabled - backend chat endpoints not available');
       });
 
     // Fetch chat messages
