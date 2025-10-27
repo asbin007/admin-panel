@@ -18,7 +18,7 @@ export interface IReview {
   Shoe?: {
     id: string;
     name: string;
-    images: string;
+    images: string | string[];
   };
 }
 
@@ -72,10 +72,47 @@ export function fetchAllReviews() {
   return async function fetchAllReviewsThunk(dispatch: AppDispatch) {
     try {
       dispatch(setStatus(Status.LOADING));
-      // Reviews endpoint might not be implemented in backend
-      // Return empty array as fallback
-      console.log("⚠️ Reviews endpoint not available - using fallback");
-      dispatch(setReviews([]));
+      
+      // Try local Next.js API first
+      try {
+        const token = localStorage.getItem("tokenauth");
+        const response = await fetch("/api/review", {
+          headers: {
+            'Authorization': token || '',
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        console.log("✅ Reviews fetched successfully from Next.js API:", data);
+        
+        if (data.data) {
+          dispatch(setReviews(data.data));
+        } else {
+          dispatch(setReviews([]));
+        }
+        
+        dispatch(setStatus(Status.SUCCESS));
+        return;
+      } catch (localError) {
+        console.log("⚠️ Local API failed, trying backend directly:", localError);
+      }
+      
+      // Fallback to direct backend call
+      const response = await APIS.get("/review");
+      
+      console.log("✅ Reviews fetched successfully:", response.data);
+      
+      if (response.data.data) {
+        dispatch(setReviews(response.data.data));
+      } else {
+        dispatch(setReviews([]));
+      }
+      
       dispatch(setStatus(Status.SUCCESS));
     } catch (error: any) {
       console.error("❌ Error fetching reviews:", error);
@@ -109,14 +146,52 @@ export function fetchReviewsByProduct(productId: string) {
   return async function fetchReviewsByProductThunk(dispatch: AppDispatch) {
     try {
       dispatch(setStatus(Status.LOADING));
-      // Reviews endpoint might not be implemented in backend
-      // Return empty array as fallback
-      console.log("⚠️ Reviews by product endpoint not available - using fallback");
-      dispatch(setReviews([]));
+      
+      // Try local Next.js API first
+      try {
+        const token = localStorage.getItem("tokenauth");
+        const response = await fetch(`/api/review/${productId}`, {
+          headers: {
+            'Authorization': token || '',
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        console.log("✅ Product reviews fetched successfully from Next.js API:", data);
+        
+        if (data.data) {
+          dispatch(setReviews(data.data));
+        } else {
+          dispatch(setReviews([]));
+        }
+        
+        dispatch(setStatus(Status.SUCCESS));
+        return;
+      } catch (localError) {
+        console.log("⚠️ Local API failed, trying backend directly:", localError);
+      }
+      
+      // Fallback to direct backend call
+      const response = await APIS.get(`/review/${productId}`);
+      
+      console.log("✅ Product reviews fetched successfully:", response.data);
+      
+      if (response.data.data) {
+        dispatch(setReviews(response.data.data));
+      } else {
+        dispatch(setReviews([]));
+      }
+      
       dispatch(setStatus(Status.SUCCESS));
     } catch (error: any) {
       console.error("Error fetching product reviews:", error);
       dispatch(setStatus(Status.ERROR));
+      dispatch(setReviews([]));
     }
   };
 }
@@ -124,9 +199,35 @@ export function fetchReviewsByProduct(productId: string) {
 export function deleteReview(reviewId: string) {
   return async function deleteReviewThunk(dispatch: AppDispatch) {
     try {
-      // Reviews endpoint might not be implemented in backend
-      // Return success as fallback
-      console.log("⚠️ Delete review endpoint not available - using fallback");
+      // Try local Next.js API first
+      try {
+        const token = localStorage.getItem("tokenauth");
+        const response = await fetch(`/api/review/${reviewId}`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': token || '',
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        console.log("✅ Review deleted successfully via Next.js API:", data);
+        
+        dispatch(removeReview(reviewId));
+        return { success: true };
+      } catch (localError) {
+        console.log("⚠️ Local API failed, trying backend directly:", localError);
+      }
+      
+      // Fallback to direct backend call
+      const response = await APIS.delete(`/review/${reviewId}`);
+      
+      console.log("✅ Review deleted successfully:", response.data);
+      
       dispatch(removeReview(reviewId));
       return { success: true };
     } catch (error: any) {
@@ -142,6 +243,35 @@ export function deleteReview(reviewId: string) {
 export function updateReviewById(reviewId: string, data: { rating: number; comment: string }) {
   return async function updateReviewThunk(dispatch: AppDispatch) {
     try {
+      // Try local Next.js API first
+      try {
+        const token = localStorage.getItem("tokenauth");
+        const response = await fetch(`/api/review/${reviewId}`, {
+          method: 'PATCH',
+          headers: {
+            'Authorization': token || '',
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(data)
+        });
+        
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const responseData = await response.json();
+        
+        if (responseData.message === "Review updated successfully") {
+          dispatch(updateReview(responseData.data));
+          return { success: true };
+        } else {
+          return { success: false, error: responseData.message };
+        }
+      } catch (localError) {
+        console.log("⚠️ Local API failed, trying backend directly:", localError);
+      }
+      
+      // Fallback to direct backend call
       const response = await APIS.patch(`/review/${reviewId}`, data);
       
       if (response.data.message === "Review updated successfully") {
