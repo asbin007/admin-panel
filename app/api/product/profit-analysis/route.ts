@@ -84,7 +84,31 @@ export async function GET(request: NextRequest) {
     const productSalesMap = new Map<string, { quantity: number; revenue: number }>();
     
     orders.forEach((order: unknown) => {
-      const orderData = order as { orderItems?: unknown[]; Order?: { orderItems?: unknown[] } };
+      const orderData = order as { 
+        orderItems?: unknown[]; 
+        Order?: { orderItems?: unknown[] };
+        orderDetails?: unknown[];
+      };
+      
+      // Check if order has orderDetails array (from order details API)
+      if (orderData.orderDetails && Array.isArray(orderData.orderDetails)) {
+        orderData.orderDetails.forEach((detail: unknown) => {
+          const detailData = detail as { 
+            productId: string; 
+            quantity: string | number; 
+            Shoe?: { price: number } 
+          };
+          const quantity = typeof detailData.quantity === 'string' ? parseInt(detailData.quantity) : detailData.quantity;
+          const price = detailData.Shoe?.price || 0;
+          const existing = productSalesMap.get(detailData.productId) || { quantity: 0, revenue: 0 };
+          productSalesMap.set(detailData.productId, {
+            quantity: existing.quantity + quantity,
+            revenue: existing.revenue + (price * quantity)
+          });
+        });
+      }
+      
+      // Also check for orderItems array (if it exists)
       const orderItems = orderData.orderItems || orderData.Order?.orderItems || [];
       orderItems.forEach((item: unknown) => {
         const itemData = item as { productId: string; quantity: number; price: number };

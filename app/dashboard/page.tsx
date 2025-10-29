@@ -220,12 +220,38 @@ export default function Dashboard() {
       }
     });
 
-    // Process products for profit calculation
-    if (products && products.length > 0) {
+    // Process products for profit calculation using actual sold quantities from orders
+    if (products && products.length > 0 && orders && orders.length > 0) {
+      // Create a map of product sales from orders
+      const productSalesMap = new Map<string, number>();
+      
+      orders.forEach((order: OrderData) => {
+        // Check if order has orderDetails array (from order details API)
+        if (order.orderDetails && Array.isArray(order.orderDetails)) {
+          order.orderDetails.forEach((detail: any) => {
+            const productId = detail.productId;
+            const quantity = parseInt(detail.quantity) || 0;
+            const existing = productSalesMap.get(productId) || 0;
+            productSalesMap.set(productId, existing + quantity);
+          });
+        }
+        
+        // Also check for orderItems array (if it exists)
+        const orderItems = order.orderItems || order.Order?.orderItems || [];
+        if (orderItems.length > 0) {
+          orderItems.forEach((item: any) => {
+            const productId = item.productId;
+            const quantity = item.quantity || 0;
+            const existing = productSalesMap.get(productId) || 0;
+            productSalesMap.set(productId, existing + quantity);
+          });
+        }
+      });
+
       products.forEach((product: ProductData) => {
         const costPrice = product.costPrice || (product.price || 0) * 0.7;
         const profitPerUnit = (product.price || 0) - costPrice;
-        const quantitySold = product.totalQuantitySold || 0;
+        const quantitySold = productSalesMap.get(product.id) || 0;
         
         totalCost += costPrice * quantitySold;
         totalProfit += profitPerUnit * quantitySold;
@@ -274,19 +300,59 @@ export default function Dashboard() {
 
   // Top selling products
   const topSellingProducts = useMemo(() => {
-    if (!products || products.length === 0) return [];
+    if (!products || products.length === 0 || !orders || orders.length === 0) return [];
+    
+    // Create a map of product sales from orders
+    const productSalesMap = new Map<string, { quantity: number; revenue: number }>();
+    
+    orders.forEach((order: OrderData) => {
+      // Check if order has orderDetails array (from order details API)
+      if (order.orderDetails && Array.isArray(order.orderDetails)) {
+        order.orderDetails.forEach((detail: any) => {
+          const productId = detail.productId;
+          const quantity = parseInt(detail.quantity) || 0;
+          const price = detail.Shoe?.price || 0;
+          const existing = productSalesMap.get(productId) || { quantity: 0, revenue: 0 };
+          productSalesMap.set(productId, {
+            quantity: existing.quantity + quantity,
+            revenue: existing.revenue + (price * quantity)
+          });
+        });
+      }
+      
+      // Also check for orderItems array (if it exists)
+      const orderItems = order.orderItems || order.Order?.orderItems || [];
+      if (orderItems.length > 0) {
+        orderItems.forEach((item: any) => {
+          const productId = item.productId;
+          const quantity = item.quantity || 0;
+          const price = item.price || 0;
+          const existing = productSalesMap.get(productId) || { quantity: 0, revenue: 0 };
+          productSalesMap.set(productId, {
+            quantity: existing.quantity + quantity,
+            revenue: existing.revenue + (price * quantity)
+          });
+        });
+      }
+    });
     
     return products
-      .map(product => ({
-        ...product,
-        quantitySold: product.totalQuantitySold || 0,
-        revenue: product.totalRevenue || 0,
-        profit: (product.totalQuantitySold || 0) * ((product.price || 0) - (product.costPrice || 0)),
-        stock: product.totalStock || 0,
-      }))
+      .map(product => {
+        const salesData = productSalesMap.get(product.id) || { quantity: 0, revenue: 0 };
+        const costPrice = product.costPrice || (product.price || 0) * 0.7;
+        const profitPerUnit = (product.price || 0) - costPrice;
+        
+        return {
+          ...product,
+          quantitySold: salesData.quantity,
+          revenue: salesData.revenue,
+          profit: profitPerUnit * salesData.quantity,
+          stock: product.totalStock || 0,
+        };
+      })
       .sort((a, b) => b.quantitySold - a.quantitySold)
       .slice(0, 5);
-  }, [products]);
+  }, [products, orders]);
 
   // Recent orders
   const recentOrders = useMemo(() => {

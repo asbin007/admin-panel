@@ -6,6 +6,7 @@ import collectionSlice from "./collectionSlice";
 import orderSlice from './orderSlice'
 import reviewsSlice from './reviewsSlice'
 import chatSlice from './chatSlice'
+import adminManagementSlice from './adminManagementSlice'
 const store = configureStore({
   reducer: {
     auth: authSlice,
@@ -14,7 +15,8 @@ const store = configureStore({
     collections: collectionSlice,
     orders:orderSlice,
     reviews: reviewsSlice,
-    chat: chatSlice
+    chat: chatSlice,
+    adminManagement: adminManagementSlice
   },
 });
 

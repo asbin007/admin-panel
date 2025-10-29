@@ -4,12 +4,7 @@ import { useMemo } from "react";
 import {
   Area,
   AreaChart,
-  Bar,
-  BarChart,
   CartesianGrid,
-  Line,
-  LineChart,
-  ResponsiveContainer,
   XAxis,
   YAxis,
 } from "recharts";
@@ -22,16 +17,9 @@ import {
 } from "@/components/ui/chart";
 import { TrendingUp, DollarSign } from "lucide-react";
 
-interface RevenueData {
-  month: string;
-  revenue: number;
-  profit: number;
-  orders: number;
-}
-
 interface RevenueChartProps {
-  orders: any[];
-  products: any[];
+  orders: unknown[];
+  products: unknown[];
 }
 
 export function RevenueChart({ orders, products }: RevenueChartProps) {
@@ -68,11 +56,11 @@ export function RevenueChart({ orders, products }: RevenueChartProps) {
 
     // Calculate revenue and orders for each month
     orders.forEach((order) => {
-      const orderDate = new Date(order.createdAt || order.Order?.createdAt || new Date());
+      const orderDate = new Date((order as { createdAt?: string; Order?: { createdAt?: string } }).createdAt || (order as { createdAt?: string; Order?: { createdAt?: string } }).Order?.createdAt || new Date());
       const orderMonth = orderDate.getMonth();
       const orderYear = orderDate.getFullYear();
       
-      const orderTotal = order.totalAmount || order.Order?.totalAmount || order.totalPrice || 0;
+      const orderTotal = (order as { totalAmount?: number; Order?: { totalAmount?: number }; totalPrice?: number }).totalAmount || (order as { totalAmount?: number; Order?: { totalAmount?: number }; totalPrice?: number }).Order?.totalAmount || (order as { totalAmount?: number; Order?: { totalAmount?: number }; totalPrice?: number }).totalPrice || 0;
       
       const monthIndex = months.findIndex(m => 
         m.monthNumber === orderMonth && m.year === orderYear
@@ -84,17 +72,44 @@ export function RevenueChart({ orders, products }: RevenueChartProps) {
       }
     });
 
-    // Calculate profit for each month
-    months.forEach((month, index) => {
-      if (products && products.length > 0) {
+    // Calculate profit for each month using actual order data
+    months.forEach((month) => {
+      if (products && products.length > 0 && orders && orders.length > 0) {
         let monthlyProfit = 0;
-        products.forEach((product) => {
-          const costPrice = product.costPrice || (product.price || 0) * 0.7;
-          const profitPerUnit = (product.price || 0) - costPrice;
-          // Estimate monthly sales based on total sales distribution
-          const estimatedMonthlySales = (product.totalQuantitySold || 0) / 12;
-          monthlyProfit += profitPerUnit * estimatedMonthlySales;
+        
+        // Calculate profit for orders in this month
+        orders.forEach((order) => {
+          const orderDate = new Date((order as { createdAt?: string; Order?: { createdAt?: string } }).createdAt || (order as { createdAt?: string; Order?: { createdAt?: string } }).Order?.createdAt || 0);
+          const orderMonth = orderDate.getMonth();
+          const orderYear = orderDate.getFullYear();
+          
+          if (orderMonth === month.monthNumber && orderYear === month.year) {
+            // Check if order has orderDetails array (from order details API)
+            if ((order as { orderDetails?: unknown[] }).orderDetails && Array.isArray((order as { orderDetails?: unknown[] }).orderDetails)) {
+              ((order as { orderDetails?: unknown[] }).orderDetails || []).forEach((detail: unknown) => {
+                const product = products.find(p => (p as { id: string }).id === (detail as { productId: string }).productId);
+                if (product) {
+                  const costPrice = (product as { costPrice?: number; price?: number }).costPrice || ((product as { costPrice?: number; price?: number }).price || 0) * 0.7;
+                  const profitPerUnit = ((product as { costPrice?: number; price?: number }).price || 0) - costPrice;
+                  const quantity = typeof (detail as { quantity: string | number }).quantity === 'string' ? parseInt((detail as { quantity: string | number }).quantity as string) : (detail as { quantity: string | number }).quantity;
+                  monthlyProfit += profitPerUnit * (Number(quantity) || 0);
+                }
+              });
+            }
+            
+            // Also check for orderItems array (if it exists)
+            const orderItems = (order as { orderItems?: unknown[]; Order?: { orderItems?: unknown[] } }).orderItems || (order as { orderItems?: unknown[]; Order?: { orderItems?: unknown[] } }).Order?.orderItems || [];
+            orderItems.forEach((item: unknown) => {
+              const product = products.find(p => (p as { id: string }).id === (item as { productId: string }).productId);
+              if (product) {
+                const costPrice = (product as { costPrice?: number; price?: number }).costPrice || ((product as { costPrice?: number; price?: number }).price || 0) * 0.7;
+                const profitPerUnit = ((product as { costPrice?: number; price?: number }).price || 0) - costPrice;
+                monthlyProfit += profitPerUnit * ((item as { quantity: number }).quantity || 0);
+              }
+            });
+          }
         });
+        
         month.profit = monthlyProfit;
       }
     });

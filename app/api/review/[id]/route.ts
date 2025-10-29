@@ -14,10 +14,10 @@ interface Review {
 // DELETE /api/review/[id] - Delete a review
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const reviewId = params.id;
+    const { id: reviewId } = await params;
 
     // Get authorization header from the request
     const authHeader = request.headers.get('authorization');
@@ -72,10 +72,10 @@ export async function DELETE(
 // PATCH /api/review/[id] - Update a review
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const reviewId = params.id;
+    const { id: reviewId } = await params;
     const body = await request.json();
 
     // Get authorization header
@@ -130,10 +130,10 @@ export async function PATCH(
 // GET /api/review/[id] - Get a specific review
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const reviewId = params.id;
+    const { id: reviewId } = await params;
 
     // Get authorization header
     const authHeader = request.headers.get('authorization');
