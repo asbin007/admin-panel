@@ -34,7 +34,6 @@ export function RevenueChart({ orders, products }: RevenueChartProps) {
       monthNumber: number; 
       year: number; 
       revenue: number; 
-      profit: number; 
       orders: number;
     }[] = [];
     const now = new Date();
@@ -49,7 +48,6 @@ export function RevenueChart({ orders, products }: RevenueChartProps) {
         monthNumber: date.getMonth(),
         year: year,
         revenue: 0,
-        profit: 0,
         orders: 0,
       });
     }
@@ -72,48 +70,6 @@ export function RevenueChart({ orders, products }: RevenueChartProps) {
       }
     });
 
-    // Calculate profit for each month using actual order data
-    months.forEach((month) => {
-      if (products && products.length > 0 && orders && orders.length > 0) {
-        let monthlyProfit = 0;
-        
-        // Calculate profit for orders in this month
-        orders.forEach((order) => {
-          const orderDate = new Date((order as { createdAt?: string; Order?: { createdAt?: string } }).createdAt || (order as { createdAt?: string; Order?: { createdAt?: string } }).Order?.createdAt || 0);
-          const orderMonth = orderDate.getMonth();
-          const orderYear = orderDate.getFullYear();
-          
-          if (orderMonth === month.monthNumber && orderYear === month.year) {
-            // Check if order has orderDetails array (from order details API)
-            if ((order as { orderDetails?: unknown[] }).orderDetails && Array.isArray((order as { orderDetails?: unknown[] }).orderDetails)) {
-              ((order as { orderDetails?: unknown[] }).orderDetails || []).forEach((detail: unknown) => {
-                const product = products.find(p => (p as { id: string }).id === (detail as { productId: string }).productId);
-                if (product) {
-                  const costPrice = (product as { costPrice?: number; price?: number }).costPrice || ((product as { costPrice?: number; price?: number }).price || 0) * 0.7;
-                  const profitPerUnit = ((product as { costPrice?: number; price?: number }).price || 0) - costPrice;
-                  const quantity = typeof (detail as { quantity: string | number }).quantity === 'string' ? parseInt((detail as { quantity: string | number }).quantity as string) : (detail as { quantity: string | number }).quantity;
-                  monthlyProfit += profitPerUnit * (Number(quantity) || 0);
-                }
-              });
-            }
-            
-            // Also check for orderItems array (if it exists)
-            const orderItems = (order as { orderItems?: unknown[]; Order?: { orderItems?: unknown[] } }).orderItems || (order as { orderItems?: unknown[]; Order?: { orderItems?: unknown[] } }).Order?.orderItems || [];
-            orderItems.forEach((item: unknown) => {
-              const product = products.find(p => (p as { id: string }).id === (item as { productId: string }).productId);
-              if (product) {
-                const costPrice = (product as { costPrice?: number; price?: number }).costPrice || ((product as { costPrice?: number; price?: number }).price || 0) * 0.7;
-                const profitPerUnit = ((product as { costPrice?: number; price?: number }).price || 0) - costPrice;
-                monthlyProfit += profitPerUnit * ((item as { quantity: number }).quantity || 0);
-              }
-            });
-          }
-        });
-        
-        month.profit = monthlyProfit;
-      }
-    });
-
     return months;
   }, [orders, products]);
 
@@ -121,10 +77,6 @@ export function RevenueChart({ orders, products }: RevenueChartProps) {
     revenue: {
       label: "Revenue",
       color: "hsl(var(--chart-1))",
-    },
-    profit: {
-      label: "Profit",
-      color: "hsl(var(--chart-2))",
     },
     orders: {
       label: "Orders",
@@ -169,14 +121,6 @@ export function RevenueChart({ orders, products }: RevenueChartProps) {
             stackId="1"
             stroke="var(--color-revenue)"
             fill="var(--color-revenue)"
-            fillOpacity={0.6}
-          />
-          <Area
-            type="monotone"
-            dataKey="profit"
-            stackId="2"
-            stroke="var(--color-profit)"
-            fill="var(--color-profit)"
             fillOpacity={0.6}
           />
         </AreaChart>

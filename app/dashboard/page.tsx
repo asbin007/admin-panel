@@ -598,20 +598,7 @@ export default function Dashboard() {
             </CardContent>
           </Card>
           
-          <Card className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-950/30 dark:to-green-900/20 border-green-200 dark:border-green-800/50">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-green-800 dark:text-green-200">Total Profit</CardTitle>
-              <TrendingUp className="h-4 w-4 text-green-600 dark:text-green-400" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-green-700 dark:text-green-300">
-                {formatPrice(businessMetrics.totalProfit)}
-              </div>
-              <p className="text-xs text-green-600 dark:text-green-400">
-                {businessMetrics.profitMargin.toFixed(1)}% margin
-              </p>
-            </CardContent>
-          </Card>
+          
           
           <Card className="bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-950/30 dark:to-purple-900/20 border-purple-200 dark:border-purple-800/50">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -897,25 +884,6 @@ export default function Dashboard() {
 
         {/* Additional Charts */}
         <div className="grid gap-6 md:grid-cols-2">
-          {/* Product Performance Chart */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <BarChart3 className="h-5 w-5 text-blue-600" />
-                Top Products Performance
-                {realTimeData.isLive && (
-                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-                )}
-              </CardTitle>
-              <CardDescription>
-                Best selling products by quantity
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ProductPerformanceChart products={products} />
-            </CardContent>
-          </Card>
-
           {/* Daily Sales Chart */}
           <Card>
             <CardHeader>
@@ -937,7 +905,7 @@ export default function Dashboard() {
         </div>
 
         {/* Top Selling Products */}
-        {topSellingProducts.length > 0 && (
+        {/* {topSellingProducts.length > 0 && (
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -969,12 +937,12 @@ export default function Dashboard() {
                       <div>
                         <p className="font-medium">{product.name}</p>
                         <p className="text-sm text-muted-foreground">
-                          {formatPrice(product.price)} • {product.quantitySold} sold
+                          {formatPrice(product?.price)} • {product?.quantitySold} sold
                         </p>
                       </div>
                     </div>
                     <div className="text-right">
-                      <p className="font-bold text-green-600">{formatPrice(product.revenue)}</p>
+                      <p className="font-bold text-green-600">{formatPrice(product?.revenue)}</p>
                       <p className="text-xs text-muted-foreground">Revenue</p>
                     </div>
                   </div>
@@ -982,7 +950,7 @@ export default function Dashboard() {
               </div>
             </CardContent>
           </Card>
-        )}
+        )} */}
 
         {/* Recent Orders */}
         {recentOrders.length > 0 && (

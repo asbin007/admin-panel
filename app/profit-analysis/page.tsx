@@ -61,7 +61,7 @@ const ProfitAnalysisPage: React.FC = () => {
   const fetchProfitAnalysis = async () => {
     try {
       setLoading(true)
-      const token = localStorage.getItem("token")
+      const token = localStorage.getItem("tokenauth")
       
       if (!token) {
         toast.error("Please login to view profit analysis")
