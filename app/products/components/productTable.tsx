@@ -44,6 +44,9 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import ProductForm from "./productForm";
+import { useEffect } from "react";
+import { socket } from "@/app/app";
+import { fetchProducts } from "@/store/productSlice";
 
 // Simple placeholder image
 const PLACEHOLDER_IMAGE = "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjQiIGhlaWdodD0iNjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3QgeD0iMyIgeT0iMyIgd2lkdGg9IjE4IiBoZWlnaHQ9IjE4IiByeD0iMiIgcnk9IjIiLz4KPGNpcmNsZSBjeD0iOC41IiBjeT0iOC41IiByPSIxLjUiLz4KPHBvbHlsaW5lIHBvaW50cz0iMjEgMTUgMTYgMTAgNSAyMSIvPgo8L3N2Zz4K";
@@ -58,6 +61,26 @@ export function ProductTable({ products = [] }: { products?: IProduct[] }) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [editingProduct, setEditingProduct] = useState<IProduct | null>(null);
+
+  useEffect(() => {
+    if (!socket.connected) {
+      console.log('ProductTable: Socket not connected (WebSocket may be disabled)');
+      return;
+    }
+    
+    console.log('ProductTable: Socket connected, setting up listeners');
+
+    const handleStockUpdated = () => {
+      console.log('🔄 Stock updated via WebSocket, refreshing products list');
+      dispatch(fetchProducts());
+    };
+
+    socket.on("stockUpdated", handleStockUpdated);
+
+    return () => {
+      socket.off("stockUpdated", handleStockUpdated);
+    };
+  }, [dispatch]);
 
   const handleDelete = async (id: string) => {
     if (confirm("Are you sure you want to delete this product?")) {

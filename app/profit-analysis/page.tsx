@@ -21,6 +21,7 @@ import {
   XCircle
 } from "lucide-react"
 import toast from "react-hot-toast"
+import { socket } from "@/app/app";
 
 interface ProfitData {
   id: string
@@ -99,6 +100,26 @@ const ProfitAnalysisPage: React.FC = () => {
   useEffect(() => {
     fetchProfitAnalysis()
   }, [])
+
+  useEffect(() => {
+    if (!socket.connected) {
+      console.log('ProfitAnalysisPage: Socket not connected (WebSocket may be disabled)');
+      return;
+    }
+
+    console.log('ProfitAnalysisPage: Socket connected, setting up listeners');
+
+    const handleStockUpdated = () => {
+      console.log('🔄 Stock updated via WebSocket, refreshing profit analysis');
+      fetchProfitAnalysis();
+    };
+
+    socket.on("stockUpdated", handleStockUpdated);
+
+    return () => {
+      socket.off("stockUpdated", handleStockUpdated);
+    };
+  }, []);
 
   // Filter and sort data
   const filteredAndSortedData = profitData

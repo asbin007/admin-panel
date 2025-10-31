@@ -167,3 +167,25 @@ export function updateProducts(id: string, data: FormData) {
     }
   };
 }
+
+export function updateProductStock(productId: string, quantity: number) {
+  return async function updateProductStockThunk(dispatch: AppDispatch) {
+    try {
+      const res = await APIS.patch(`/product/decrease-stock/${productId}`, {
+        quantity,
+      });
+      if (res.status === 200) {
+        // Optionally, refetch products or update local state if needed
+        dispatch(fetchProducts());
+        return { success: true, data: res.data.data };
+      } else {
+        throw new Error(res.data.message || "Failed to update stock");
+      }
+    } catch (error: any) {
+      console.error("Error updating product stock:", error);
+      throw new Error(
+        error.response?.data?.message || "Failed to update product stock"
+      );
+    }
+  };
+}

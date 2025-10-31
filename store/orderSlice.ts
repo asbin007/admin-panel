@@ -2,6 +2,7 @@ import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 import { Status } from "./authSlice";
 import { API, APIS } from "@/globals/http";
 import { AppDispatch } from "./store";
+import { updateProductStock, fetchProducts } from "./productSlice";
 
 export enum OrderStatus {
   Preparation = "preparation",
@@ -325,7 +326,7 @@ export function updateOrderStatus(orderId: string, status: string, userId: strin
         socket.emit('broadcastOrderUpdate', { orderId, status });
         
         // Listen for the response
-        const handleStatusUpdated = (data: any) => {
+        const handleStatusUpdated = async (data: any) => {
           console.log('✅ Order status update response received:', data);
           if (data.orderId === orderId) {
             (window as any).socket.off('statusUpdated', handleStatusUpdated);
@@ -334,6 +335,17 @@ export function updateOrderStatus(orderId: string, status: string, userId: strin
             
             // Refresh order details
             dispatch(fetchAdminOrderDetails(orderId));
+            if (status === OrderStatus.Delivered) {
+              // Fetch order details to get product quantities
+              const orderDetailsResponse = await APIS.get(`/order/admin/${orderId}`);
+              if (orderDetailsResponse.status === 200 && orderDetailsResponse.data.data) {
+                for (const detail of orderDetailsResponse.data.data) {
+                  await dispatch(updateProductStock(detail.productId, detail.quantity));
+                  // Emit stock update event
+                  socket.emit('stockUpdated', { productId: detail.productId, quantity: detail.quantity });
+                }
+              }
+            }
             resolve({ success: true, method: 'websocket' });
           }
         };
@@ -415,6 +427,19 @@ export function updateOrderStatus(orderId: string, status: string, userId: strin
         console.log('✅ Order status updated via API');
         // Refresh order details
         dispatch(fetchAdminOrderDetails(orderId));
+        if (status === OrderStatus.Delivered) {
+          // Fetch order details to get product quantities
+          const orderDetailsResponse = await APIS.get(`/order/admin/${orderId}`);
+          if (orderDetailsResponse.status === 200 && orderDetailsResponse.data.data) {
+            for (const detail of orderDetailsResponse.data.data) {
+              await dispatch(updateProductStock(detail.productId, detail.quantity));
+              // Emit stock update event via WebSocket fallback
+              if (typeof window !== 'undefined' && (window as any).socket && (window as any).socket.connected) {
+                (window as any).socket.emit('stockUpdated', { productId: detail.productId, quantity: detail.quantity });
+              }
+            }
+          }
+        }
         return { success: true, method: 'api' };
       } else {
         console.error('❌ API update failed:', response?.status);
